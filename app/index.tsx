@@ -11,7 +11,19 @@ export default function Index() {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       const session = data?.session;
-      router.replace(session ? '/(tabs)' : '/login');
+
+      if (!session) {
+        router.replace('/login');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      router.replace(profile ? '/(tabs)' : '/onboarding');
     };
 
     checkSession();

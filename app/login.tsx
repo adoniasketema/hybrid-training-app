@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Button, SafeAreaView, StyleSheet, TextInput, View } from 'react-native';
+import { Button, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -8,21 +8,46 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error' | undefined>(undefined);
+
+  const showFeedback = (message: string, type: 'success' | 'error') => {
+    setFeedbackMessage(message);
+    setFeedbackType(type);
+  };
+
+  const routeAfterLogin = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    router.replace(profile ? '/(tabs)' : ('/onboarding' as unknown as any));
+  };
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-
     if (error) {
-      Alert.alert('Login failed', error.message);
+      const message = error.message.includes('Invalid login credentials')
+        ? 'No account found or wrong password. If you have not signed up yet, please sign up first.'
+        : error.message;
+
+      showFeedback(message, 'error');
       return;
     }
 
+    if (!data?.session?.user?.id) {
+      showFeedback('Login succeeded, but we could not locate your account. Please try again.', 'error');
+      return;
+    }
 
-    router.replace('/(tabs)');
+    showFeedback('Login successful. Welcome back!', 'success');
+    setTimeout(() => routeAfterLogin(data.session.user.id), 800);
   };
 
   const handleSignUp = async () => {
@@ -32,11 +57,12 @@ export default function LoginScreen() {
     });
 
     if (error) {
-      Alert.alert('Sign up failed', error.message);
+      showFeedback(error.message, 'error');
       return;
     }
 
-    router.replace('/(tabs)');
+    showFeedback('Sign up successful. Continue to onboarding.', 'success');
+    setTimeout(() => router.replace('/onboarding' as unknown as any), 900);
   };
 
   return (
@@ -69,6 +95,12 @@ export default function LoginScreen() {
         />
       </View>
 
+      {feedbackMessage ? (
+        <Text style={[styles.feedbackText, feedbackType === 'success' ? styles.success : styles.error]}>
+          {feedbackMessage}
+        </Text>
+      ) : null}
+
       <Button title="Login" onPress={handleLogin} />
       <View style={styles.spacer} />
       <Button title="Sign Up" onPress={handleSignUp} />
@@ -94,5 +126,16 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 12,
+  },
+  feedbackText: {
+    marginBottom: 16,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  success: {
+    color: 'limegreen',
+  },
+  error: {
+    color: 'tomato',
   },
 });
