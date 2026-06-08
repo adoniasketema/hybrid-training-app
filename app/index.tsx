@@ -23,7 +23,7 @@ export default function Index() {
         .eq('id', session.user.id)
         .maybeSingle();
 
-      router.replace(profile ? '/(tabs)' : '/onboarding');
+      router.replace(profile ? '/tabs' : '/onboarding');
     };
 
     checkSession();

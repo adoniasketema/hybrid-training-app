@@ -32,7 +32,7 @@ export default function HomeScreen() {
         <Text style={styles.cardText}>Track strength and cardio in one place. Log supersets, interval runs, and recovery days as you go.</Text>
       </View>
 
-      <Button title="Go to Workout" onPress={() => router.push('/(tabs)/workout')} />
+      <Button title="Choose a Workout" onPress={() => router.push('/tabs/workout')} />
     </ScrollView>
   );
 }

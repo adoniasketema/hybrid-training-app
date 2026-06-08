@@ -23,7 +23,7 @@ export default function LoginScreen() {
       .eq('id', userId)
       .maybeSingle();
 
-    router.replace(profile ? '/(tabs)' : ('/onboarding' as unknown as any));
+    router.replace(profile ? '/tabs' : '/onboarding');
   };
 
   const handleLogin = async () => {

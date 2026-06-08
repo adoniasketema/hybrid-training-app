@@ -32,7 +32,7 @@ export default function OnboardingScreen() {
 
       const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle();
       if (profile) {
-        router.replace('/(tabs)');
+        router.replace('/tabs');
       }
     };
 
@@ -77,7 +77,7 @@ export default function OnboardingScreen() {
       return;
     }
 
-    router.replace('/(tabs)');
+    router.replace('/tabs');
   };
 
   const renderOptions = (options: readonly string[], selected: string, onSelect: (value: string) => void) => (

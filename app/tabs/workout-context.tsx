@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 type StrengthEntry = {
   id: string;
@@ -31,10 +32,10 @@ type WorkoutContextValue = {
   workoutHistory: WorkoutLog[];
   weeklySessions: number;
   streak: number;
-  startWorkout: () => void;
-  addStrengthEntry: (exercise: string, sets: number, reps: number, weightKg: number) => void;
-  addCardioEntry: (exercise: string, distanceKm: number, durationMin: number) => void;
-  completeWorkout: () => void;
+  startWorkout: () => Promise<void>;
+  addStrengthEntry: (exercise: string, sets: number, reps: number, weightKg: number) => Promise<void>;
+  addCardioEntry: (exercise: string, distanceKm: number, durationMin: number) => Promise<void>;
+  completeWorkout: () => Promise<void>;
 };
 
 const WorkoutContext = createContext<WorkoutContextValue | null>(null);
@@ -51,62 +52,152 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [todayLog, setTodayLog] = useState<WorkoutLog | null>(null);
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutLog[]>([]);
 
-  const startWorkout = useCallback(() => {
-    if (!todayLog) {
-      setTodayLog({
-        id: todayKey(),
-        date: todayKey(),
-        completed: false,
-        entries: [],
-      });
-    }
+  useEffect(() => {
+    loadWorkouts();
+  }, []);
+
+  const loadWorkouts = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: workouts } = await supabase
+      .from('workouts')
+      .select(`
+        id, date, completed,
+        workout_exercises (
+          id, sets, reps, weight_kg, duration_minutes, distance_km,
+          exercises ( id, name, type )
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('date', { ascending: false });
+
+    if (!workouts) return;
+
+    const mapped: WorkoutLog[] = workouts.map((w: any) => ({
+      id: w.id,
+      date: w.date,
+      completed: w.completed,
+      entries: w.workout_exercises.map((we: any) => {
+        if (we.exercises.type === 'cardio') {
+          return {
+            id: we.id,
+            type: 'cardio',
+            exercise: we.exercises.name,
+            distanceKm: we.distance_km ?? 0,
+            durationMin: we.duration_minutes ?? 0,
+          } as CardioEntry;
+        } else {
+          return {
+            id: we.id,
+            type: 'strength',
+            exercise: we.exercises.name,
+            sets: we.sets ?? 0,
+            reps: we.reps ?? 0,
+            weightKg: we.weight_kg ?? 0,
+          } as StrengthEntry;
+        }
+      }),
+    }));
+
+    const today = mapped.find((w) => w.date === todayKey()) ?? null;
+    const history = mapped.filter((w) => w.completed);
+
+    setTodayLog(today);
+    setWorkoutHistory(history);
+  };
+
+  const startWorkout = useCallback(async () => {
+    if (todayLog) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('workouts')
+      .insert({ user_id: user.id, date: todayKey(), completed: false })
+      .select()
+      .single();
+
+    if (error || !data) return;
+
+    setTodayLog({ id: data.id, date: data.date, completed: false, entries: [] });
   }, [todayLog]);
 
   const addStrengthEntry = useCallback(
-    (exercise: string, sets: number, reps: number, weightKg: number) => {
+    async (exercise: string, sets: number, reps: number, weightKg: number) => {
+      if (!todayLog) return;
+
+      const { data: ex } = await supabase
+        .from('exercises')
+        .select('id')
+        .eq('name', exercise)
+        .single();
+
+      if (!ex) return;
+
+      const { data, error } = await supabase
+        .from('workout_exercises')
+        .insert({ workout_id: todayLog.id, exercise_id: ex.id, sets, reps, weight_kg: weightKg })
+        .select()
+        .single();
+
+      if (error || !data) return;
+
       setTodayLog((log) =>
-        log
-          ? {
-              ...log,
-              entries: [
-                ...log.entries,
-                { id: `${Date.now()}`, type: 'strength', exercise, sets, reps, weightKg },
-              ],
-            }
-          : log,
+        log ? {
+          ...log,
+          entries: [...log.entries, { id: data.id, type: 'strength', exercise, sets, reps, weightKg }],
+        } : log
       );
     },
-    [],
+    [todayLog]
   );
 
   const addCardioEntry = useCallback(
-    (exercise: string, distanceKm: number, durationMin: number) => {
+    async (exercise: string, distanceKm: number, durationMin: number) => {
+      if (!todayLog) return;
+
+      const { data: ex } = await supabase
+        .from('exercises')
+        .select('id')
+        .eq('name', exercise)
+        .single();
+
+      if (!ex) return;
+
+      const { data, error } = await supabase
+        .from('workout_exercises')
+        .insert({ workout_id: todayLog.id, exercise_id: ex.id, duration_minutes: durationMin, distance_km: distanceKm })
+        .select()
+        .single();
+
+      if (error || !data) return;
+
       setTodayLog((log) =>
-        log
-          ? {
-              ...log,
-              entries: [
-                ...log.entries,
-                { id: `${Date.now()}`, type: 'cardio', exercise, distanceKm, durationMin },
-              ],
-            }
-          : log,
+        log ? {
+          ...log,
+          entries: [...log.entries, { id: data.id, type: 'cardio', exercise, distanceKm, durationMin }],
+        } : log
       );
     },
-    [],
+    [todayLog]
   );
 
-  const completeWorkout = useCallback(() => {
-    setTodayLog((log) => {
-      if (!log || log.completed || log.entries.length === 0) {
-        return log;
-      }
+  const completeWorkout = useCallback(async () => {
+    if (!todayLog || todayLog.completed || todayLog.entries.length === 0) return;
 
-      const completedLog = { ...log, completed: true };
-      setWorkoutHistory((history) => [completedLog, ...history.filter((item) => item.date !== completedLog.date)]);
-      return completedLog;
-    });
-  }, []);
+    const { error } = await supabase
+      .from('workouts')
+      .update({ completed: true })
+      .eq('id', todayLog.id);
+
+    if (error) return;
+
+    const completedLog = { ...todayLog, completed: true };
+    setTodayLog(completedLog);
+    setWorkoutHistory((history) => [completedLog, ...history.filter((w) => w.date !== completedLog.date)]);
+  }, [todayLog]);
 
   const streak = useMemo(() => {
     const history = [...workoutHistory].sort((a, b) => b.date.localeCompare(a.date));
