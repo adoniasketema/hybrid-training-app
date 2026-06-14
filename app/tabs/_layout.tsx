@@ -7,6 +7,8 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { WorkoutProvider } from './workout-context';
 
+import { Platform, StyleSheet, View } from 'react-native';
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
@@ -14,9 +16,21 @@ export default function TabLayout() {
     <WorkoutProvider>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+          tabBarActiveTintColor: Colors[colorScheme ?? 'dark'].tabIconSelected,
+          tabBarInactiveTintColor: Colors[colorScheme ?? 'dark'].tabIconDefault,
           headerShown: false,
           tabBarButton: HapticTab,
+          tabBarStyle: {
+            position: 'absolute',
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: '#27272A', // Very dark grey border
+            elevation: 0,
+            backgroundColor: Colors[colorScheme ?? 'dark'].cardBackground,
+            height: Platform.OS === 'ios' ? 88 : 60,
+          },
+          sceneContainerStyle: {
+            backgroundColor: Colors[colorScheme ?? 'dark'].background,
+          },
         }}>
         <Tabs.Screen
           name="index"
