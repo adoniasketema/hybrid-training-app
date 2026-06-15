@@ -26,13 +26,13 @@ export default function OnboardingScreen() {
       const user = data?.session?.user;
 
       if (!user) {
-        router.replace('/login');
+        router.replace('/(auth)/login');
         return;
       }
 
       const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle();
       if (profile) {
-        router.replace('/tabs');
+        router.replace('/(app)');
       }
     };
 
@@ -50,7 +50,7 @@ export default function OnboardingScreen() {
 
     if (!user) {
       Alert.alert('Authentication required', 'Please sign in again.');
-      router.replace('/login');
+      router.replace('/(auth)/login');
       return;
     }
 
@@ -77,7 +77,7 @@ export default function OnboardingScreen() {
       return;
     }
 
-    router.replace('/tabs');
+    router.replace('/(app)');
   };
 
   const renderOptions = (options: readonly string[], selected: string, onSelect: (value: string) => void) => (

@@ -2,10 +2,10 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useWorkout } from './workout-context';
-import { SleekCard } from '@/components/ui/SleekCard';
 import { SleekButton } from '@/components/ui/SleekButton';
+import { SleekCard } from '@/components/ui/SleekCard';
 import { Colors } from '@/constants/theme';
+import { useWorkout } from '@/hooks/workout-context';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function HomeScreen() {
           
           <SleekButton 
             title={todayLog ? "CONTINUE" : "START NEW"} 
-            onPress={() => router.push('/tabs/workout')} 
+            onPress={() => router.push('/workout')} 
             variant="primary" 
             style={styles.button} 
           />

@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { supabase } from '@/lib/supabase';
-import { SleekCard } from '@/components/ui/SleekCard';
-import { SleekButton } from '@/components/ui/SleekButton';
-import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { SleekButton } from '@/components/ui/SleekButton';
+import { SleekCard } from '@/components/ui/SleekCard';
+import { Colors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 type UserProfile = {
   email: string;
@@ -32,7 +32,7 @@ export default function ProfileScreen() {
       const user = data?.session?.user;
 
       if (!user) {
-        router.replace('/login');
+        router.replace('/(auth)/login');
         return;
       }
 
@@ -46,7 +46,7 @@ export default function ProfileScreen() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    router.replace('/login');
+    router.replace('/(auth)/login');
   };
 
   if (loading) {
@@ -63,7 +63,7 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.title}>Profile</Text>
           <Text style={styles.message}>No profile found. Please complete onboarding first.</Text>
-          <SleekButton title="Go to Onboarding" onPress={() => router.replace('/onboarding')} variant="primary" />
+          <SleekButton title="Go to Onboarding" onPress={() => router.replace('/(auth)/onboarding')} variant="primary" />
         </ScrollView>
       </SafeAreaView>
     );

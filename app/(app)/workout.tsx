@@ -1,24 +1,25 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    SectionList,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { supabase } from '@/lib/supabase';
-import { SleekCard } from '@/components/ui/SleekCard';
 import { SleekButton } from '@/components/ui/SleekButton';
+import { SleekCard } from '@/components/ui/SleekCard';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -26,6 +27,7 @@ type Exercise = {
   id: string;
   name: string;
   type: 'strength' | 'cardio';
+  category: string;
 };
 
 type SetRow = {
@@ -58,6 +60,12 @@ type WorkoutSummary = {
   exerciseCount: number;
 };
 
+const FILTER_OPTIONS = [
+  { id: 'all', label: 'All', icon: 'paperplane.fill' as const },
+  { id: 'strength', label: 'Strength', icon: 'flame.fill' as const },
+  { id: 'cardio', label: 'Cardio', icon: 'heart.fill' as const },
+] as const;
+
 /* ── Helpers ───────────────────────────────────────────── */
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
@@ -88,6 +96,7 @@ export default function WorkoutScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<'all' | 'strength' | 'cardio'>('all');
 
   // General
   const [loading, setLoading] = useState(true);
@@ -203,7 +212,8 @@ export default function WorkoutScreen() {
   const loadExercises = async () => {
     const { data } = await supabase
       .from('exercises')
-      .select('id, name, type')
+      .select('id, name, type, category')
+      .order('category', { ascending: true })
       .order('name', { ascending: true });
 
     setAllExercises((data ?? []) as Exercise[]);
@@ -234,7 +244,7 @@ export default function WorkoutScreen() {
       return;
     }
 
-    router.push(`/tabs/workout?workoutId=${data.id}`);
+    router.push(`/workout?workoutId=${data.id}`);
   };
 
   const selectExercise = async (exercise: Exercise) => {
@@ -417,28 +427,28 @@ export default function WorkoutScreen() {
     }
 
     setWorkout({ ...workout, completed: true });
-    router.push('/tabs/workout');
+    router.push('/workout');
   };
 
   /* ── Filtered exercises for picker ─────────────────────── */
 
   const filteredSections = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    const filtered = query
-      ? allExercises.filter((e) => e.name.toLowerCase().includes(query))
-      : allExercises;
+    const filtered = allExercises
+      .filter((e) => selectedTypeFilter === 'all' || e.type === selectedTypeFilter)
+      .filter((e) => (query ? e.name.toLowerCase().includes(query) : true));
 
     const groups = new Map<string, Exercise[]>();
     for (const ex of filtered) {
-      const letter = ex.name[0]?.toUpperCase() ?? '#';
-      if (!groups.has(letter)) groups.set(letter, []);
-      groups.get(letter)!.push(ex);
+      const category = ex.category?.trim() || 'Other';
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category)!.push(ex);
     }
 
     return Array.from(groups.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([letter, data]) => ({ title: letter, data }));
-  }, [allExercises, searchQuery]);
+      .map(([category, data]) => ({ title: category, data }));
+  }, [allExercises, searchQuery, selectedTypeFilter]);
 
   /* ── Render: Loading ───────────────────────────────────── */
 
@@ -482,9 +492,37 @@ export default function WorkoutScreen() {
           <View style={{ width: 30 }} />
         </View>
 
+        <View style={styles.filterRow}>
+          {FILTER_OPTIONS.map((option) => (
+            <Pressable
+              key={option.id}
+              onPress={() => setSelectedTypeFilter(option.id)}
+              style={[
+                styles.filterButton,
+                selectedTypeFilter === option.id && styles.filterButtonActive,
+              ]}
+            >
+              <IconSymbol
+                name={option.icon}
+                size={14}
+                color={selectedTypeFilter === option.id ? '#fff' : Colors.dark.textSecondary}
+                style={styles.filterIcon}
+              />
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedTypeFilter === option.id && styles.filterTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
         <TextInput
           style={styles.searchInput}
-          placeholder="Search exercises..."
+          placeholder="Search library..."
           placeholderTextColor="#999"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -502,7 +540,18 @@ export default function WorkoutScreen() {
               style={styles.exerciseRow}
               onPress={() => selectExercise(item)}
             >
-              <Text style={styles.exerciseRowName}>{item.name}</Text>
+              <View style={styles.exerciseRowHeader}>
+                <View style={styles.exerciseRowTitle}>
+                  <IconSymbol
+                    name={item.type === 'strength' ? 'flame.fill' : 'heart.fill'}
+                    size={18}
+                    color={item.type === 'strength' ? Colors.dark.primary : Colors.dark.secondary}
+                    style={styles.exerciseRowIcon}
+                  />
+                  <Text style={styles.exerciseRowName}>{item.name}</Text>
+                </View>
+                <Text style={styles.exerciseRowCategory}>{item.category || 'Other'}</Text>
+              </View>
               <Text style={styles.exerciseRowType}>
                 {item.type === 'strength' ? 'Strength' : 'Cardio'}
               </Text>
@@ -544,7 +593,7 @@ export default function WorkoutScreen() {
                 key={w.id}
                 containerStyle={{ marginBottom: 16, borderColor: w.completed ? Colors.dark.status : 'rgba(59, 130, 246, 0.15)' }}
               >
-                <Pressable onPress={() => router.push(`/tabs/workout?workoutId=${w.id}`)}>
+                <Pressable onPress={() => router.push(`/workout?workoutId=${w.id}`)}>
                   <Text style={styles.listCardDate}>{formatDate(w.date)}</Text>
                   <Text style={styles.listCardMeta}>
                     {w.completed ? 'Completed' : 'In Progress'} · {w.exerciseCount}{' '}
@@ -583,7 +632,7 @@ export default function WorkoutScreen() {
         >
           {/* Header row */}
           <View style={styles.detailHeader}>
-            <Pressable onPress={() => router.push('/tabs/workout')}>
+            <Pressable onPress={() => router.push('/workout')}>
               <Text style={styles.backText}>← Back</Text>
             </Pressable>
             {!workout.completed && (
@@ -895,6 +944,33 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: Colors.dark.text,
   },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  filterButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: Colors.dark.cardBackground,
+  },
+  filterButtonActive: {
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
+  },
+  filterText: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.dark.textSecondary,
+    textTransform: 'capitalize',
+  },
+  filterTextActive: {
+    color: '#fff',
+  },
   searchInput: {
     marginHorizontal: 24,
     backgroundColor: Colors.dark.cardBackground,
@@ -922,10 +998,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
+  exerciseRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exerciseRowTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exerciseRowIcon: {
+    marginTop: 2,
+  },
   exerciseRowName: {
     fontSize: 16,
     fontFamily: 'Inter_500Medium',
     color: Colors.dark.text,
+  },
+  exerciseRowCategory: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.dark.textSecondary,
+    textTransform: 'capitalize',
   },
   exerciseRowType: {
     fontSize: 13,
@@ -933,5 +1029,8 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
     marginTop: 4,
     textTransform: 'capitalize',
+  },
+  filterIcon: {
+    marginRight: 6,
   },
 });

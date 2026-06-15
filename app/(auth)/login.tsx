@@ -23,7 +23,7 @@ export default function LoginScreen() {
       .eq('id', userId)
       .maybeSingle();
 
-    router.replace(profile ? '/tabs' : '/onboarding');
+    router.replace(profile ? '/(app)' : '/(auth)/onboarding');
   };
 
   const handleLogin = async () => {
@@ -62,7 +62,7 @@ export default function LoginScreen() {
     }
 
     showFeedback('Sign up successful. Continue to onboarding.', 'success');
-    setTimeout(() => router.replace('/onboarding' as unknown as any), 900);
+    setTimeout(() => router.replace('/(auth)/onboarding'), 900);
   };
 
   return (

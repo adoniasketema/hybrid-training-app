@@ -1,9 +1,9 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useWorkout } from './workout-context';
 import { SleekCard } from '@/components/ui/SleekCard';
 import { Colors } from '@/constants/theme';
+import { useWorkout } from '@/hooks/workout-context';
 
 export default function ProgressScreen() {
   const { workoutHistory, weeklySessions, streak } = useWorkout();
