@@ -1,43 +1,66 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SleekButton } from '@/components/ui/SleekButton';
 import { SleekCard } from '@/components/ui/SleekCard';
 import { Colors } from '@/constants/theme';
-import { useWorkout } from '@/hooks/workout-context';
+import { getWorkoutStats, WorkoutStats } from '@/lib/stats';
+
+const EMPTY_STATS: WorkoutStats = {
+  streak: 0,
+  weeklySessions: 0,
+  hasWorkoutToday: false,
+  todayCount: 0,
+  history: [],
+};
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { todayLog, weeklySessions, streak } = useWorkout();
+  const [stats, setStats] = useState<WorkoutStats>(EMPTY_STATS);
+
+  // Refetch every time Home comes into focus (e.g. after logging a set on the
+  // Workout tab and tabbing back) so the numbers never go stale.
+  useFocusEffect(
+    useCallback(() => {
+      getWorkoutStats().then(setStats);
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Home</Text>
         <Text style={styles.subtitle}>Welcome back. Stay consistent.</Text>
-        
+
         <SleekCard containerStyle={styles.headerCard}>
           <Text style={styles.cardTitle}>Today's Session</Text>
-          <Text style={styles.cardValue}>{todayLog ? (todayLog.completed ? 'Completed' : 'In Progress') : 'Ready to Start'}</Text>
-          <Text style={styles.cardText}>{todayLog ? `${todayLog.entries.length} entries logged` : 'No workout started yet.'}</Text>
-          
-          <SleekButton 
-            title={todayLog ? "CONTINUE" : "START NEW"} 
-            onPress={() => router.push('/workout')} 
-            variant="primary" 
-            style={styles.button} 
+          <Text style={styles.cardValue}>
+            {stats.hasWorkoutToday ? 'Logged Today' : 'Ready to Start'}
+          </Text>
+          <Text style={styles.cardText}>
+            {stats.hasWorkoutToday
+              ? `${stats.todayCount} session${stats.todayCount === 1 ? '' : 's'} today`
+              : 'No workout started yet.'}
+          </Text>
+
+          <SleekButton
+            title={stats.hasWorkoutToday ? 'NEW SESSION' : 'START NEW'}
+            onPress={() => router.push('/workout')}
+            variant="primary"
+            style={styles.button}
           />
         </SleekCard>
 
         <View style={styles.statRow}>
           <SleekCard containerStyle={styles.statCard}>
             <Text style={styles.statLabel}>Weekly</Text>
-            <Text style={styles.statValue}>{weeklySessions}</Text>
+            <Text style={styles.statValue}>{stats.weeklySessions}</Text>
           </SleekCard>
           <SleekCard containerStyle={styles.statCard}>
             <Text style={styles.statLabel}>Streak</Text>
-            <Text style={styles.statValue}>{streak}</Text>
+            <Text style={styles.statValue}>{stats.streak}</Text>
           </SleekCard>
         </View>
 
@@ -58,7 +81,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 24,
-    paddingBottom: 120, // accommodate bottom tab
+    paddingBottom: 120,
     gap: 20,
   },
   title: {
