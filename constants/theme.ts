@@ -10,34 +10,34 @@ const tintColorDark = '#fff';
 
 export const Colors = {
   light: {
-    text: '#F8FAFC',
-    textSecondary: '#A1A1AA',
-    background: '#000000', // OLED Black
-    cardBackground: '#121212', // Dark Grey
-    tint: '#3B82F6', // Neon Blue
-    icon: '#A1A1AA',
-    tabIconDefault: '#A1A1AA',
-    tabIconSelected: '#3B82F6',
-    primary: '#1E3A8A', // Midnight Blue
-    secondary: '#3B82F6', // Lighter Blue Accent
-    status: '#3B82F6',
-    accent: '#3B82F6',
-    borderGlow: 'rgba(59, 130, 246, 0.5)', // Subtle neon blue glow
+    text: '#FFFFFF',
+    textSecondary: '#9CA3AF',
+    background: '#0F1115', // Deep Charcoal
+    cardBackground: '#1A1C23', // Elevated Flat Dark Grey
+    tint: '#F59E0B', // Gold/Yellow Accent
+    icon: '#9CA3AF',
+    tabIconDefault: '#9CA3AF',
+    tabIconSelected: '#F59E0B',
+    primary: '#F59E0B', // Gold
+    secondary: '#FFFFFF', // White for secondary accents
+    status: '#F59E0B',
+    accent: '#F59E0B',
+    borderGlow: 'transparent', // No glow
   },
   dark: {
-    text: '#F8FAFC',
-    textSecondary: '#A1A1AA',
-    background: '#000000', // OLED Black
-    cardBackground: '#121212', // Dark Grey
-    tint: '#3B82F6', // Neon Blue
-    icon: '#A1A1AA',
-    tabIconDefault: '#A1A1AA',
-    tabIconSelected: '#3B82F6',
-    primary: '#1E3A8A', // Midnight Blue
-    secondary: '#3B82F6', // Lighter Blue Accent
-    status: '#3B82F6',
-    accent: '#3B82F6',
-    borderGlow: 'rgba(59, 130, 246, 0.5)', // Subtle neon blue glow
+    text: '#FFFFFF',
+    textSecondary: '#9CA3AF',
+    background: '#0F1115', // Deep Charcoal
+    cardBackground: '#1A1C23', // Elevated Flat Dark Grey
+    tint: '#F59E0B', // Gold/Yellow Accent
+    icon: '#9CA3AF',
+    tabIconDefault: '#9CA3AF',
+    tabIconSelected: '#F59E0B',
+    primary: '#F59E0B', // Gold
+    secondary: '#FFFFFF', // White for secondary accents
+    status: '#F59E0B',
+    accent: '#F59E0B',
+    borderGlow: 'transparent', // No glow
   },
 };
 

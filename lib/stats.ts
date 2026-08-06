@@ -41,7 +41,7 @@ export async function getWorkoutStats(): Promise<WorkoutStats> {
   }
 
   // Unique set of days that have at least one completed workout
-  const daysWithWorkout = new Set(data.map((w) => w.date as string));
+  const daysWithWorkout = new Set(data.map((w: any) => w.date as string));
 
   // Streak: walk back from today, counting consecutive days present in the set.
   // If today has no workout yet, that's fine — streak counts from yesterday back,
@@ -62,9 +62,9 @@ export async function getWorkoutStats(): Promise<WorkoutStats> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 6);
   const cutoffKey = cutoff.toISOString().slice(0, 10);
-  const weeklySessions = data.filter((w) => (w.date as string) >= cutoffKey).length;
+  const weeklySessions = data.filter((w: any) => (w.date as string) >= cutoffKey).length;
 
-  const todayCount = data.filter((w) => w.date === todayKey()).length;
+  const todayCount = data.filter((w: any) => w.date === todayKey()).length;
 
   const history: WorkoutHistoryItem[] = data.map((w: any) => ({
     id: w.id,

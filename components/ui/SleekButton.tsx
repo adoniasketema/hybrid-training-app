@@ -31,19 +31,17 @@ export function SleekButton({ title, variant = 'primary', onPress, icon, style, 
   };
 
   let bgColor = Colors.dark.primary;
-  let textColor = '#FFFFFF';
+  let textColor = '#0F1115'; // Dark text for primary gold button
   let borderColor = Colors.dark.primary;
-  let glowOpacity = 0.2;
 
   if (variant === 'secondary') {
     bgColor = 'transparent';
-    textColor = Colors.dark.secondary;
-    borderColor = Colors.dark.secondary;
-    glowOpacity = 0.1;
+    textColor = '#FFFFFF';
+    borderColor = 'rgba(255, 255, 255, 0.2)'; // Subtle white outline
   } else if (variant === 'accent') {
-    bgColor = Colors.dark.secondary;
-    borderColor = Colors.dark.secondary;
-    glowOpacity = 0.4;
+    bgColor = 'transparent';
+    textColor = Colors.dark.primary;
+    borderColor = Colors.dark.primary;
   }
 
   return (
@@ -59,8 +57,8 @@ export function SleekButton({ title, variant = 'primary', onPress, icon, style, 
             borderWidth: 1,
             borderColor: borderColor,
             shadowColor: borderColor,
-            shadowOpacity: glowOpacity,
-            shadowRadius: 8,
+            shadowOpacity: 0,
+            shadowRadius: 0,
             shadowOffset: { width: 0, height: 0 },
             elevation: variant === 'secondary' ? 0 : 4,
           },

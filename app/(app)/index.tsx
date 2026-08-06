@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AnimatedText } from '@/components/ui/AnimatedText';
 import { SleekButton } from '@/components/ui/SleekButton';
 import { SleekCard } from '@/components/ui/SleekCard';
 import { Colors } from '@/constants/theme';
@@ -31,7 +32,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Home</Text>
+        <AnimatedText style={styles.title} delay={100}>Home</AnimatedText>
         <Text style={styles.subtitle}>Welcome back. Stay consistent.</Text>
 
         <SleekCard containerStyle={styles.headerCard}>
@@ -77,7 +78,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   container: {
     padding: 24,

@@ -1,4 +1,4 @@
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black, useFonts } from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,6 +21,8 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    Inter_800ExtraBold,
+    Inter_900Black,
   });
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function RootLayout() {
 
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setIsSignedIn(!!session?.user);
     });
 
@@ -53,16 +55,13 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         {!isSignedIn ? (
-          <Stack.Group screenOptions={{ headerShown: false, animationEnabled: false }}>
-            <Stack.Screen name="(auth)" />
-          </Stack.Group>
+          <Stack.Screen name="(auth)" options={{ headerShown: false, animation: 'none' }} />
         ) : (
-          <Stack.Group screenOptions={{ headerShown: false, animationEnabled: false }}>
-            <Stack.Screen name="(app)" />
-          </Stack.Group>
+          <Stack.Screen name="(app)" options={{ headerShown: false, animation: 'none' }} />
         )}
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
+
       <StatusBar style="auto" />
     </ThemeProvider>
   );

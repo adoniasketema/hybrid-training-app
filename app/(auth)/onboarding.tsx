@@ -80,7 +80,7 @@ export default function OnboardingScreen() {
     router.replace('/(app)');
   };
 
-  const renderOptions = (options: readonly string[], selected: string, onSelect: (value: string) => void) => (
+  const renderOptions = <T extends string>(options: readonly T[], selected: T, onSelect: (value: T) => void) => (
     <View style={styles.optionRow}>
       {options.map((option) => (
         <Button
