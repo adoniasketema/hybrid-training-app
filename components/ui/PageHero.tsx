@@ -18,9 +18,13 @@ interface PageHeroProps {
 }
 
 export function PageHero({ video, image, eyebrow, title, subtitle }: PageHeroProps) {
-  const { width } = useWindowDimensions();
+  const { width, height: viewportHeight } = useWindowDimensions();
   const isMobile = width < 768;
-  const height = isMobile ? 440 : 580;
+  // Bigger, cinematic heros — mobile aims for near-full-height without
+  // eating the whole viewport; desktop caps at 85vh so the section below
+  // always peeks through and hints at more content.
+  const targetHeight = isMobile ? Math.max(560, viewportHeight * 0.75) : 720;
+  const height = Math.min(targetHeight, viewportHeight * 0.85);
 
   const overlay = (
     <>
