@@ -630,17 +630,52 @@ export default function WorkoutScreen() {
           {/* Header row */}
           <View style={styles.detailHeader}>
             <Pressable onPress={() => router.push('/workout')}>
-              <Text style={styles.backText}>← Back</Text>
+              <Text style={styles.backText}>← Back to Sessions</Text>
             </Pressable>
             {!workout.completed && (
               <SleekButton title="Finish" onPress={finishWorkout} variant="accent" style={{ paddingVertical: 8, paddingHorizontal: 16 }} />
             )}
           </View>
 
-          <Text style={styles.title}>
-            {workout.completed ? 'Completed Workout' : 'Workout'}
-          </Text>
-          <Text style={styles.dateLabel}>{formatDate(workout.date)}</Text>
+          {/* Summary card */}
+          <View style={styles.summaryCard}>
+            <View style={[styles.summaryStatusChip, !workout.completed && styles.summaryStatusChipInProgress]}>
+              <Text style={[styles.summaryStatusText, !workout.completed && styles.summaryStatusTextInProgress]}>
+                {workout.completed ? 'COMPLETED' : 'IN PROGRESS'}
+              </Text>
+            </View>
+            <Text style={styles.summaryDate}>{formatDate(workout.date)}</Text>
+            <View style={styles.summaryMetaRow}>
+              <View>
+                <Text style={styles.summaryMetaNum}>{workout.exerciseGroups.length}</Text>
+                <Text style={styles.summaryMetaLabel}>
+                  {workout.exerciseGroups.length === 1 ? 'Exercise' : 'Exercises'}
+                </Text>
+              </View>
+              <View>
+                <Text style={styles.summaryMetaNum}>
+                  {workout.exerciseGroups.reduce((acc, g) => acc + g.sets.length, 0)}
+                </Text>
+                <Text style={styles.summaryMetaLabel}>Total Sets</Text>
+              </View>
+              <View>
+                <Text style={styles.summaryMetaNum}>
+                  {Math.round(
+                    workout.exerciseGroups.reduce(
+                      (acc, g) =>
+                        acc +
+                        g.sets.reduce(
+                          (s, set) => s + Number(set.weightLbs || 0) * Number(set.reps || 0),
+                          0,
+                        ),
+                      0,
+                    ),
+                  ).toLocaleString()}
+                </Text>
+                <Text style={styles.summaryMetaLabel}>lb Moved</Text>
+              </View>
+            </View>
+          </View>
 
           {/* Exercise groups */}
           {workout.exerciseGroups.map((group, gi) => (
@@ -813,9 +848,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backText: {
-    fontSize: 16,
-    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
     color: Colors.dark.primary,
+    letterSpacing: 0.5,
   },
   dateLabel: {
     fontSize: 15,
@@ -823,6 +859,60 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
     marginTop: -8,
     marginBottom: 8,
+  },
+  summaryCard: {
+    backgroundColor: 'rgba(20,20,22,0.75)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.20)',
+    padding: 24,
+    gap: 12,
+  },
+  summaryStatusChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(245,158,11,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.45)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+  },
+  summaryStatusChipInProgress: {
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  summaryStatusText: {
+    color: Colors.dark.primary,
+    fontSize: 10,
+    fontFamily: 'Inter_800ExtraBold',
+    letterSpacing: 1.5,
+  },
+  summaryStatusTextInProgress: {
+    color: '#FFF',
+  },
+  summaryDate: {
+    color: '#FFF',
+    fontSize: 28,
+    fontFamily: 'Inter_800ExtraBold',
+    letterSpacing: -0.5,
+  },
+  summaryMetaRow: {
+    flexDirection: 'row',
+    gap: 32,
+    marginTop: 8,
+  },
+  summaryMetaNum: {
+    color: Colors.dark.primary,
+    fontSize: 24,
+    fontFamily: 'Inter_800ExtraBold',
+  },
+  summaryMetaLabel: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 2,
   },
 
   /* ── Exercise card ── */

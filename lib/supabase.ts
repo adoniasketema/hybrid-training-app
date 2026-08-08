@@ -43,6 +43,22 @@ TABLES.workouts.forEach((w: any, i: number) => {
 let mockIdCounter = 1;
 const newId = (prefix: string) => `${prefix}-mock-${Date.now()}-${mockIdCounter++}`;
 
+/**
+ * Emulate the `workouts(*, workout_exercises(*, exercises(*)))` join shape
+ * that the real Supabase client returns. Applied to every read path
+ * (single / maybeSingle / then) so single-row and multi-row reads behave
+ * consistently — this was a bug: only `then` used to decorate, so the
+ * workout detail view got empty exercise groups.
+ */
+const decorateRows = (tableName: string, rows: any[]) => {
+  if (tableName !== 'workouts') return rows;
+  const wes = TABLES.workout_exercises || [];
+  return rows.map((w: any) => ({
+    ...w,
+    workout_exercises: wes.filter((we: any) => we.workout_id === w.id),
+  }));
+};
+
 // A robust mock chain to intercept all Supabase queries
 const createMockChain = (tableName: string) => {
   // filters accumulate across .eq() calls
@@ -58,11 +74,11 @@ const createMockChain = (tableName: string) => {
     },
     order: () => chain,
     single: async () => {
-      const rows = applyFilters(TABLES[tableName] || []);
+      const rows = decorateRows(tableName, applyFilters(TABLES[tableName] || []));
       return { data: rows[0] ?? null, error: null };
     },
     maybeSingle: async () => {
-      const rows = applyFilters(TABLES[tableName] || []);
+      const rows = decorateRows(tableName, applyFilters(TABLES[tableName] || []));
       return { data: rows[0] ?? null, error: null };
     },
     // insert/update/delete return the chain so callers can do
@@ -95,19 +111,8 @@ const createMockChain = (tableName: string) => {
       return chain;
     },
     then: (resolve: any) => {
-      const rows = applyFilters(TABLES[tableName] || []);
-      // Emulate the `workouts(..., workout_exercises(id))` shorthand: when
-      // reading workouts, attach related workout_exercises with just their id.
-      const decorated =
-        tableName === 'workouts'
-          ? rows.map((w: any) => ({
-              ...w,
-              workout_exercises: (TABLES.workout_exercises || [])
-                .filter((we: any) => we.workout_id === w.id)
-                .map((we: any) => ({ id: we.id })),
-            }))
-          : rows;
-      resolve({ data: decorated, error: null });
+      const rows = decorateRows(tableName, applyFilters(TABLES[tableName] || []));
+      resolve({ data: rows, error: null });
     },
   };
   return chain;
