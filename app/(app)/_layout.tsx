@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -16,11 +16,17 @@ export default function AppLayout() {
   const theme = Colors[colorScheme ?? 'dark'];
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <AppBackground>
       <View style={{ flex: 1, flexDirection: isDesktop ? 'row' : 'column' }}>
-        {isDesktop && <Sidebar />}
+        {isDesktop && (
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((v) => !v)}
+          />
+        )}
 
         <View style={{ flex: 1 }}>
           <ResponsiveContainer>
