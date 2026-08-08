@@ -1,0 +1,17 @@
+appId: com.adoniasketema.hybridtrainingapp
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Log In"
+    file: login.yaml
+- tapOn: "START SESSION"
+- tapOn: "Add Exercise"
+- tapOn: "Bench Press"
+- tapOn: "Add Set"
+- tapOn: "lbs"
+- inputText: "135"
+- tapOn: "reps"
+- inputText: "10"
+- tapOn: "Complete Workout"
+- assertVisible: "Latest Session"

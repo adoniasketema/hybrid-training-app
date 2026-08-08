@@ -1,0 +1,10 @@
+appId: com.adoniasketema.hybridtrainingapp
+---
+- launchApp
+- tapOn: "Log In"
+- tapOn: "Email"
+- inputText: "demo@hybrid.com"
+- tapOn: "Password"
+- inputText: "password123"
+- tapOn: "Sign In"
+- assertVisible: "YOU'RE ON."

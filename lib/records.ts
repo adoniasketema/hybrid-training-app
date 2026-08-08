@@ -1,6 +1,8 @@
 import { Achievement } from '@/components/ui/AchievementBadge';
 import { supabase } from '@/lib/supabase';
 import { WorkoutStats } from '@/lib/stats';
+import { storage } from '@/lib/storage';
+import NetInfo from '@react-native-community/netinfo';
 
 export type PersonalRecord = {
   exerciseId: string;
@@ -27,13 +29,24 @@ export async function getPersonalRecords(): Promise<PersonalRecord[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
+  const cacheKey = `prs_${user.id}`;
+  const netInfo = await NetInfo.fetch();
+
+  if (!netInfo.isConnected) {
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : [];
+  }
+
   const { data: workouts } = await supabase
     .from('workouts')
     .select('id, date, completed, workout_exercises(id, weight_kg, reps, exercises(id, name, type))')
     .eq('user_id', user.id)
     .eq('completed', true);
 
-  if (!workouts) return [];
+  if (!workouts) {
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : [];
+  }
 
   const byExercise = new Map<string, PersonalRecord>();
   for (const w of workouts as any[]) {
@@ -55,7 +68,10 @@ export async function getPersonalRecords(): Promise<PersonalRecord[]> {
       }
     }
   }
-  return Array.from(byExercise.values()).sort((a, b) => b.maxWeightLbs - a.maxWeightLbs);
+  
+  const result = Array.from(byExercise.values()).sort((a, b) => b.maxWeightLbs - a.maxWeightLbs);
+  storage.set(cacheKey, JSON.stringify(result));
+  return result;
 }
 
 /**
@@ -66,13 +82,25 @@ export async function getVolumeTotals(): Promise<{ allTime: number; thisWeek: nu
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { allTime: 0, thisWeek: 0 };
 
+  const cacheKey = `volume_${user.id}`;
+  const netInfo = await NetInfo.fetch();
+  const emptyResult = { allTime: 0, thisWeek: 0 };
+
+  if (!netInfo.isConnected) {
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : emptyResult;
+  }
+
   const { data: workouts } = await supabase
     .from('workouts')
     .select('id, date, completed, workout_exercises(weight_kg, reps)')
     .eq('user_id', user.id)
     .eq('completed', true);
 
-  if (!workouts) return { allTime: 0, thisWeek: 0 };
+  if (!workouts) {
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : emptyResult;
+  }
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 6);
@@ -87,7 +115,10 @@ export async function getVolumeTotals(): Promise<{ allTime: number; thisWeek: nu
       if ((w.date as string) >= cutoffKey) thisWeek += v;
     }
   }
-  return { allTime, thisWeek };
+  
+  const result = { allTime, thisWeek };
+  storage.set(cacheKey, JSON.stringify(result));
+  return result;
 }
 
 /** Full feed of completed + in-progress sessions, newest first. */
@@ -95,13 +126,24 @@ export async function getSessionFeed(): Promise<SessionSummary[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
+  const cacheKey = `feed_${user.id}`;
+  const netInfo = await NetInfo.fetch();
+
+  if (!netInfo.isConnected) {
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : [];
+  }
+
   const { data: workouts } = await supabase
     .from('workouts')
     .select('id, date, completed, workout_exercises(id, weight_kg, reps, exercises(name))')
     .eq('user_id', user.id)
     .order('date', { ascending: false });
 
-  if (!workouts) return [];
+  if (!workouts) {
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : [];
+  }
 
   return (workouts as any[]).map((w) => {
     const wes = w.workout_exercises ?? [];
@@ -117,6 +159,9 @@ export async function getSessionFeed(): Promise<SessionSummary[]> {
       totalVolumeLbs: volume,
     };
   });
+  
+  storage.set(cacheKey, JSON.stringify(result));
+  return result;
 }
 
 /**

@@ -10,6 +10,7 @@ import { StatRing } from '@/components/ui/StatRing';
 import { Colors } from '@/constants/theme';
 import { getSessionFeed, getVolumeTotals, SessionSummary } from '@/lib/records';
 import { getWorkoutStats, WorkoutStats } from '@/lib/stats';
+import { supabase } from '@/lib/supabase';
 
 const EMPTY_STATS: WorkoutStats = {
   streak: 0,
@@ -37,12 +38,29 @@ export default function TodayScreen() {
   const [feed, setFeed] = useState<SessionSummary[]>([]);
   const [volume, setVolume] = useState({ allTime: 0, thisWeek: 0 });
 
+  const fetchAll = useCallback(() => {
+    getWorkoutStats().then(setStats);
+    getSessionFeed().then(setFeed);
+    getVolumeTotals().then(setVolume);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      getWorkoutStats().then(setStats);
-      getSessionFeed().then(setFeed);
-      getVolumeTotals().then(setVolume);
-    }, [])
+      fetchAll();
+      
+      // Subscribe to real-time changes on the workouts table
+      const channel = supabase.channel('public:workouts')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'workouts' }, payload => {
+          console.log('Real-time update received!', payload);
+          // Refetch data when a real-time event occurs
+          fetchAll();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [fetchAll])
   );
 
   const today = new Date();

@@ -147,5 +147,22 @@ export const supabase = {
       return { data: { subscription: { unsubscribe: () => {} } } };
     }
   },
-  from: (table: string) => createMockChain(table)
+  from: (table: string) => createMockChain(table),
+  channel: (name: string) => {
+    return {
+      on: (event: string, filter: any, callback: any) => {
+        // Return this mock channel for chaining
+        return {
+          subscribe: () => {
+            // Mock subscription - in a real app, this connects to WebSockets
+            console.log(`Subscribed to realtime channel: ${name}`);
+            return { unsubscribe: () => console.log(`Unsubscribed from ${name}`) };
+          }
+        };
+      }
+    };
+  },
+  removeChannel: (channel: any) => {
+    console.log('Channel removed');
+  }
 } as any;

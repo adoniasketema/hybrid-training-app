@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase';
+import { storage } from '@/lib/storage';
+import NetInfo from '@react-native-community/netinfo';
 
 export type WorkoutHistoryItem = {
   id: string;
@@ -23,10 +25,27 @@ const todayKey = () => new Date().toISOString().slice(0, 10);
  * - weeklySessions: count of completed workouts in the last 7 days (sessions, not days —
  *   so two workouts on the same day count as 2 toward this number)
  */
+const EMPTY_STATS: WorkoutStats = {
+  streak: 0,
+  weeklySessions: 0,
+  hasWorkoutToday: false,
+  todayCount: 0,
+  history: [],
+};
+
 export async function getWorkoutStats(): Promise<WorkoutStats> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { streak: 0, weeklySessions: 0, hasWorkoutToday: false, todayCount: 0, history: [] };
+  }
+
+  const cacheKey = `stats_${user.id}`;
+  const netInfo = await NetInfo.fetch();
+
+  // If offline, return the cached stats immediately
+  if (!netInfo.isConnected) {
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : EMPTY_STATS;
   }
 
   const { data, error } = await supabase
@@ -37,7 +56,9 @@ export async function getWorkoutStats(): Promise<WorkoutStats> {
     .order('date', { ascending: false });
 
   if (error || !data) {
-    return { streak: 0, weeklySessions: 0, hasWorkoutToday: false, todayCount: 0, history: [] };
+    // Fallback to cache if network request fails despite being "connected"
+    const cached = storage.getString(cacheKey);
+    return cached ? JSON.parse(cached) : EMPTY_STATS;
   }
 
   // Unique set of days that have at least one completed workout
@@ -73,11 +94,15 @@ export async function getWorkoutStats(): Promise<WorkoutStats> {
     entryCount: w.workout_exercises?.length ?? 0,
   }));
 
-  return {
+  const result = {
     streak,
     weeklySessions,
     hasWorkoutToday: todayCount > 0,
     todayCount,
     history,
   };
+
+  // Cache the newly fetched stats for offline use
+  storage.set(cacheKey, JSON.stringify(result));
+  return result;
 }
