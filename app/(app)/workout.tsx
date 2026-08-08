@@ -15,10 +15,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SessionFeedCard } from '@/components/ui/SessionFeedCard';
 import { SleekButton } from '@/components/ui/SleekButton';
 import { SleekCard } from '@/components/ui/SleekCard';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
+import { getSessionFeed, SessionSummary } from '@/lib/records';
 import { supabase } from '@/lib/supabase';
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -88,6 +91,7 @@ export default function WorkoutScreen() {
 
   // List view
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
+  const [feed, setFeed] = useState<SessionSummary[]>([]);
 
   // Detail view
   const [workout, setWorkout] = useState<WorkoutData | null>(null);
@@ -153,6 +157,8 @@ export default function WorkoutScreen() {
         exerciseCount: item.workout_exercises?.length ?? 0,
       })),
     );
+    const richFeed = await getSessionFeed();
+    setFeed(richFeed);
     setLoading(false);
   };
 
@@ -574,34 +580,25 @@ export default function WorkoutScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.screenPadding}>
-          <Text style={styles.title}>Workouts</Text>
+          <ScreenHeader eyebrow="Sessions" title="Your Feed" />
 
           <SleekButton
-            title="Start New Workout"
+            title="Start New Session"
             onPress={createWorkoutForToday}
             variant="accent"
             style={{ marginBottom: 24 }}
           />
 
-          {workouts.length === 0 ? (
+          {feed.length === 0 ? (
             <Text style={[styles.mutedText, { textAlign: 'center', marginTop: 24 }]}>
-              No workouts yet. Start your first one!
+              No sessions yet. Start your first one above.
             </Text>
           ) : (
-            workouts.map((w) => (
-              <SleekCard
-                key={w.id}
-                containerStyle={{ marginBottom: 16, borderColor: w.completed ? Colors.dark.status : 'rgba(59, 130, 246, 0.15)' }}
-              >
-                <Pressable onPress={() => router.push(`/workout?workoutId=${w.id}`)}>
-                  <Text style={styles.listCardDate}>{formatDate(w.date)}</Text>
-                  <Text style={styles.listCardMeta}>
-                    {w.completed ? 'Completed' : 'In Progress'} · {w.exerciseCount}{' '}
-                    {w.exerciseCount === 1 ? 'set' : 'sets'}
-                  </Text>
-                </Pressable>
-              </SleekCard>
-            ))
+            <View style={{ gap: 16 }}>
+              {feed.map((s) => (
+                <SessionFeedCard key={s.id} session={s} />
+              ))}
+            </View>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -759,13 +756,13 @@ export default function WorkoutScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   screenPadding: {
     padding: 24,
@@ -924,7 +921,7 @@ const styles = StyleSheet.create({
   /* ── Exercise picker ── */
   pickerContainer: {
     flex: 1,
-    backgroundColor: Colors.dark.background,
+    backgroundColor: 'transparent',
   },
   pickerHeader: {
     flexDirection: 'row',

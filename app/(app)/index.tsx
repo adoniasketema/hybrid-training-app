@@ -1,12 +1,14 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedText } from '@/components/ui/AnimatedText';
-import { SleekButton } from '@/components/ui/SleekButton';
-import { SleekCard } from '@/components/ui/SleekCard';
+import { HeroBlock } from '@/components/ui/HeroBlock';
+import { SessionFeedCard } from '@/components/ui/SessionFeedCard';
+import { StatRing } from '@/components/ui/StatRing';
+import { WeekStrip } from '@/components/ui/WeekStrip';
 import { Colors } from '@/constants/theme';
+import { getSessionFeed, getVolumeTotals, SessionSummary } from '@/lib/records';
 import { getWorkoutStats, WorkoutStats } from '@/lib/stats';
 
 const EMPTY_STATS: WorkoutStats = {
@@ -17,59 +19,108 @@ const EMPTY_STATS: WorkoutStats = {
   history: [],
 };
 
-export default function HomeScreen() {
-  const router = useRouter();
-  const [stats, setStats] = useState<WorkoutStats>(EMPTY_STATS);
+const formatDayLong = (d: Date) =>
+  d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  // Refetch every time Home comes into focus (e.g. after logging a set on the
-  // Workout tab and tabbing back) so the numbers never go stale.
+const formatVolume = (lbs: number) => {
+  if (lbs >= 1000) return `${(lbs / 1000).toFixed(1)}k`;
+  return String(Math.round(lbs));
+};
+
+const HERO_PHOTO = require('@/assets/images/gym-weightroom.png');
+
+export default function TodayScreen() {
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const [stats, setStats] = useState<WorkoutStats>(EMPTY_STATS);
+  const [feed, setFeed] = useState<SessionSummary[]>([]);
+  const [volume, setVolume] = useState({ allTime: 0, thisWeek: 0 });
+
   useFocusEffect(
     useCallback(() => {
       getWorkoutStats().then(setStats);
+      getSessionFeed().then(setFeed);
+      getVolumeTotals().then(setVolume);
     }, [])
   );
+
+  const today = new Date();
+  const heroTitle = stats.hasWorkoutToday
+    ? "YOU'RE ON."
+    : stats.streak > 0
+    ? 'STAY ON.'
+    : "IT'S GO TIME";
+  const heroSubtitle = stats.hasWorkoutToday
+    ? "Nice work — you've logged today. Keep the streak alive tomorrow."
+    : stats.streak > 0
+    ? `You're on a ${stats.streak}-day streak. Don't let it break.`
+    : 'Start your first session and put a workout on the board.';
+
+  const completedDates = new Set(feed.filter((s) => s.completed).map((s) => s.date));
+  const latest = feed[0];
+
+  const ringSize = isMobile ? 104 : 128;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <AnimatedText style={styles.title} delay={100}>Home</AnimatedText>
-        <Text style={styles.subtitle}>Welcome back. Stay consistent.</Text>
-
-        <SleekCard containerStyle={styles.headerCard}>
-          <Text style={styles.cardTitle}>Today's Session</Text>
-          <Text style={styles.cardValue}>
-            {stats.hasWorkoutToday ? 'Logged Today' : 'Ready to Start'}
-          </Text>
-          <Text style={styles.cardText}>
-            {stats.hasWorkoutToday
-              ? `${stats.todayCount} session${stats.todayCount === 1 ? '' : 's'} today`
-              : 'No workout started yet.'}
-          </Text>
-
-          <SleekButton
-            title={stats.hasWorkoutToday ? 'NEW SESSION' : 'START NEW'}
+        <HeroBlock
+          photo={HERO_PHOTO}
+          eyebrow={formatDayLong(today)}
+          title={heroTitle}
+          subtitle={heroSubtitle}
+          height={isMobile ? 340 : 380}
+        >
+          <Pressable
             onPress={() => router.push('/workout')}
-            variant="primary"
-            style={styles.button}
-          />
-        </SleekCard>
+            style={({ hovered }: any) => [styles.ctaPrimary, hovered && { backgroundColor: '#D97706' }]}
+          >
+            <Text style={styles.ctaPrimaryText}>START SESSION</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/workout')}
+            style={({ hovered }: any) => [styles.ctaSecondary, hovered && { borderColor: '#FFF' }]}
+          >
+            <Text style={styles.ctaSecondaryText}>VIEW SESSIONS</Text>
+          </Pressable>
+        </HeroBlock>
 
-        <View style={styles.statRow}>
-          <SleekCard containerStyle={styles.statCard}>
-            <Text style={styles.statLabel}>Weekly</Text>
-            <Text style={styles.statValue}>{stats.weeklySessions}</Text>
-          </SleekCard>
-          <SleekCard containerStyle={styles.statCard}>
-            <Text style={styles.statLabel}>Streak</Text>
-            <Text style={styles.statValue}>{stats.streak}</Text>
-          </SleekCard>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>This Week</Text>
+          <WeekStrip completedDates={completedDates} />
         </View>
 
-        <SleekCard containerStyle={styles.infoCard}>
-          <Text style={styles.cardTitle}>Overview</Text>
-          <Text style={styles.cardText}>Track strength and cardio efficiently. Keep logging your progress to build your profile.</Text>
-        </SleekCard>
+        <View style={[styles.ringsRow, isMobile && { justifyContent: 'space-around' }]}>
+          <StatRing value={stats.weeklySessions} max={5} label="Week" unit="of 5" size={ringSize} />
+          <StatRing
+            value={stats.streak}
+            max={7}
+            label="Streak"
+            unit={stats.streak === 1 ? 'day' : 'days'}
+            size={ringSize}
+          />
+          <StatRing
+            value={volume.thisWeek}
+            max={volume.thisWeek > 0 ? Math.max(volume.thisWeek, 20000) : 20000}
+            label="Volume"
+            unit="lb"
+            format={formatVolume}
+            size={ringSize}
+          />
+        </View>
 
+        {latest ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Latest Session</Text>
+              <Pressable onPress={() => router.push('/workout')}>
+                <Text style={styles.linkText}>See all →</Text>
+              </Pressable>
+            </View>
+            <SessionFeedCard session={latest} />
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -83,65 +134,57 @@ const styles = StyleSheet.create({
   container: {
     padding: 24,
     paddingBottom: 120,
-    gap: 20,
+    gap: 32,
   },
-  title: {
-    fontSize: 32,
-    fontFamily: 'Inter_700Bold',
-    color: Colors.dark.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.dark.textSecondary,
-    marginBottom: 8,
-  },
-  headerCard: {
-    gap: 8,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.dark.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  cardValue: {
-    fontSize: 28,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.dark.text,
-    letterSpacing: -0.5,
-  },
-  cardText: {
-    fontSize: 15,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.dark.textSecondary,
-    lineHeight: 22,
-  },
-  statRow: {
-    flexDirection: 'row',
+  section: {
     gap: 16,
   },
-  statCard: {
-    flex: 1,
-    gap: 8,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
   },
-  statLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.dark.textSecondary,
-  },
-  statValue: {
-    fontSize: 36,
+  sectionTitle: {
+    color: '#FFF',
+    fontSize: 18,
     fontFamily: 'Inter_700Bold',
-    color: Colors.dark.text,
-    letterSpacing: -1,
+    letterSpacing: -0.3,
   },
-  infoCard: {
-    gap: 8,
+  linkText: {
+    color: Colors.dark.primary,
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.5,
   },
-  button: {
-    marginTop: 16,
+  ringsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  ctaPrimary: {
+    backgroundColor: Colors.dark.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+  },
+  ctaPrimaryText: {
+    color: '#0A0A0A',
+    fontSize: 13,
+    fontFamily: 'Inter_800ExtraBold',
+    letterSpacing: 2,
+  },
+  ctaSecondary: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+  },
+  ctaSecondaryText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 2,
   },
 });

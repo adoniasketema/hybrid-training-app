@@ -22,6 +22,9 @@ const MAPPING = {
   'heart.fill': 'favorite',
   'chart.bar.fill': 'show-chart',
   'person.crop.circle': 'person',
+  'mappin.and.ellipse': 'place',
+  'clock.fill': 'schedule',
+  'xmark': 'close',
 } as IconMapping;
 
 /**

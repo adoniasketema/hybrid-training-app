@@ -33,9 +33,25 @@ export function VideoBackground({ source, children }: VideoBackgroundProps) {
   }, [source]);
 
   useEffect(() => {
-    if (Platform.OS === 'web' && videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
+    if (Platform.OS !== 'web') return;
+    const v = videoRef.current;
+    if (!v) return;
+    const tryPlay = () => v.play().catch(() => {});
+    tryPlay();
+    // Retry on the events that mean "playback is possible right now".
+    // The `pause` handler covers browsers that pause a muted background
+    // video when the tab loses visibility — resume as soon as we can.
+    v.addEventListener('canplay', tryPlay);
+    v.addEventListener('loadeddata', tryPlay);
+    v.addEventListener('pause', tryPlay);
+    const onVis = () => { if (!document.hidden) tryPlay(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      v.removeEventListener('canplay', tryPlay);
+      v.removeEventListener('loadeddata', tryPlay);
+      v.removeEventListener('pause', tryPlay);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [videoUri]);
 
   if (Platform.OS !== 'web') {
@@ -65,6 +81,8 @@ export function VideoBackground({ source, children }: VideoBackgroundProps) {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
+              objectPosition: 'center 30%',
+              filter: 'brightness(1.6) contrast(1.1)',
               zIndex: 0,
             }}
           >

@@ -1,10 +1,14 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AchievementBadge, Achievement } from '@/components/ui/AchievementBadge';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SleekCard } from '@/components/ui/SleekCard';
+import { StatRing } from '@/components/ui/StatRing';
 import { Colors } from '@/constants/theme';
+import { computeAchievements, getPersonalRecords, getVolumeTotals, PersonalRecord } from '@/lib/records';
 import { getWorkoutStats, WorkoutStats } from '@/lib/stats';
 
 const EMPTY_STATS: WorkoutStats = {
@@ -15,80 +19,238 @@ const EMPTY_STATS: WorkoutStats = {
   history: [],
 };
 
-export default function ProgressScreen() {
+const formatDateShort = (iso: string) => {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatVolume = (lbs: number) => {
+  if (lbs >= 1000) return `${(lbs / 1000).toFixed(1)}k`;
+  return String(Math.round(lbs));
+};
+
+export default function RecordsScreen() {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
   const [stats, setStats] = useState<WorkoutStats>(EMPTY_STATS);
-  const weeklyGoal = 5;
+  const [prs, setPrs] = useState<PersonalRecord[]>([]);
+  const [volume, setVolume] = useState({ allTime: 0, thisWeek: 0 });
 
   useFocusEffect(
     useCallback(() => {
       getWorkoutStats().then(setStats);
+      getPersonalRecords().then(setPrs);
+      getVolumeTotals().then(setVolume);
     }, [])
   );
+
+  const achievements: Achievement[] = computeAchievements(stats, prs, volume);
+  const earnedCount = achievements.filter((a) => a.earned).length;
+  const sessionsCount = stats.history.length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Progress</Text>
+        <ScreenHeader eyebrow="Your Activity" title="Records" />
 
-        <View style={styles.heroRow}>
-          <SleekCard containerStyle={styles.statCard}>
-            <Text style={styles.statLabel}>Current Streak</Text>
-            <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>{stats.streak}</Text>
-              <Text style={styles.statUnit}>day{stats.streak === 1 ? '' : 's'}</Text>
+        {/* Streak / totals hero */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroInner}>
+            <StatRing
+              value={stats.streak}
+              max={7}
+              label="Streak"
+              unit={stats.streak === 1 ? 'day' : 'days'}
+              size={140}
+            />
+            <View style={styles.heroText}>
+              <Text style={styles.heroTitle}>
+                {stats.streak > 0 ? `${stats.streak}-day fire.` : 'Start a streak.'}
+              </Text>
+              <Text style={styles.heroBody}>
+                {stats.streak > 0
+                  ? "Consistency beats intensity. Don't break the chain."
+                  : 'Log a session today to light the fuse.'}
+              </Text>
+              <View style={styles.heroStats}>
+                <View>
+                  <Text style={styles.heroStatNum}>{sessionsCount}</Text>
+                  <Text style={styles.heroStatLabel}>Total sessions</Text>
+                </View>
+                <View>
+                  <Text style={styles.heroStatNum}>{formatVolume(volume.allTime)}</Text>
+                  <Text style={styles.heroStatLabel}>All-time lb</Text>
+                </View>
+              </View>
             </View>
-          </SleekCard>
-
-          <SleekCard containerStyle={styles.statCard}>
-            <Text style={styles.statLabel}>This Week</Text>
-            <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>{stats.weeklySessions}</Text>
-              <Text style={styles.statUnit}>/ {weeklyGoal}</Text>
-            </View>
-          </SleekCard>
+          </View>
         </View>
 
-        <SleekCard containerStyle={styles.historyCard}>
-          <Text style={styles.historyCardTitle}>Workout History</Text>
-          {stats.history.length === 0 ? (
-            <Text style={styles.cardText}>No workouts logged yet. Your history will appear here.</Text>
+        {/* Personal records */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Personal Records</Text>
+          {prs.length === 0 ? (
+            <Text style={styles.mutedText}>Log a strength set with weight to unlock your first PR.</Text>
           ) : (
-            stats.history.map((workout, index) => (
-              <View key={workout.id} style={[styles.historyItem, index === 0 && styles.historyItemFirst]}>
-                <View style={styles.historyItemHeader}>
-                  <Text style={styles.historyDate}>{workout.date}</Text>
-                  <Text style={[styles.historyStatus, workout.completed && styles.historyStatusDone]}>
-                    {workout.completed ? 'Completed' : 'In Progress'}
+            <View style={[styles.prGrid, isMobile && { flexDirection: 'column' }]}>
+              {prs.map((pr) => (
+                <SleekCard key={pr.exerciseId} containerStyle={[styles.prCard, isMobile && { flex: undefined, width: '100%' }]}>
+                  <Text style={styles.prExercise}>{pr.exerciseName}</Text>
+                  <Text style={styles.prValue}>
+                    {Math.round(pr.maxWeightLbs)}
+                    <Text style={styles.prUnit}> lb</Text>
                   </Text>
-                </View>
-                <Text style={styles.historyDetail}>{workout.entryCount} entries</Text>
-              </View>
-            ))
+                  <Text style={styles.prMeta}>
+                    × {pr.atReps} · {formatDateShort(pr.atDate)}
+                  </Text>
+                </SleekCard>
+              ))}
+            </View>
           )}
-        </SleekCard>
+        </View>
+
+        {/* Achievements */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Achievements</Text>
+            <Text style={styles.sectionMeta}>
+              {earnedCount} / {achievements.length} unlocked
+            </Text>
+          </View>
+          <View style={[styles.achievementGrid, isMobile && { flexDirection: 'column' }]}>
+            {achievements.map((a) => (
+              <View key={a.id} style={[styles.achievementCell, isMobile && { flex: undefined, width: '100%' }]}>
+                <AchievementBadge achievement={a} />
+              </View>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.dark.background },
-  content: { padding: 24, paddingBottom: 120, gap: 16 },
-  title: { fontSize: 32, fontFamily: 'Inter_700Bold', color: Colors.dark.text, letterSpacing: -0.5, marginBottom: 8 },
-  heroRow: { flexDirection: 'row', gap: 16 },
-  statCard: { flex: 1, padding: 20 },
-  statLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.dark.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValueContainer: { flexDirection: 'row', alignItems: 'baseline' },
-  statValue: { fontSize: 36, fontFamily: 'Inter_700Bold', color: Colors.dark.text, letterSpacing: -1 },
-  statUnit: { fontSize: 16, fontFamily: 'Inter_500Medium', color: Colors.dark.textSecondary, marginLeft: 6 },
-  historyCard: { marginTop: 8 },
-  historyCardTitle: { fontSize: 18, fontFamily: 'Inter_600SemiBold', color: Colors.dark.text, marginBottom: 16 },
-  cardText: { fontSize: 15, fontFamily: 'Inter_400Regular', color: Colors.dark.textSecondary },
-  historyItem: { paddingVertical: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255, 255, 255, 0.05)' },
-  historyItemFirst: { borderTopWidth: 0, paddingTop: 4 },
-  historyItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  historyDate: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.dark.text },
-  historyStatus: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.dark.primary },
-  historyStatusDone: { color: Colors.dark.status },
-  historyDetail: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.dark.textSecondary },
+  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  content: { padding: 24, paddingBottom: 120, gap: 32 },
+
+  heroCard: {
+    backgroundColor: 'rgba(20,20,22,0.75)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.20)',
+    padding: 24,
+  },
+  heroInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 24,
+    flexWrap: 'wrap',
+  },
+  heroText: {
+    flex: 1,
+    minWidth: 200,
+    gap: 8,
+  },
+  heroTitle: {
+    color: '#FFF',
+    fontSize: 26,
+    fontFamily: 'Inter_800ExtraBold',
+    letterSpacing: -0.5,
+  },
+  heroBody: {
+    color: Colors.dark.textSecondary,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 21,
+  },
+  heroStats: {
+    flexDirection: 'row',
+    gap: 32,
+    marginTop: 8,
+  },
+  heroStatNum: {
+    color: Colors.dark.primary,
+    fontSize: 22,
+    fontFamily: 'Inter_800ExtraBold',
+  },
+  heroStatLabel: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+
+  section: { gap: 16 },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  sectionTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.3,
+  },
+  sectionMeta: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  mutedText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+  },
+
+  prGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  prCard: {
+    flex: 1,
+    minWidth: 180,
+    padding: 20,
+    gap: 6,
+  },
+  prExercise: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  prValue: {
+    color: '#FFF',
+    fontSize: 34,
+    fontFamily: 'Inter_900Black',
+    letterSpacing: -1,
+  },
+  prUnit: {
+    color: Colors.dark.textSecondary,
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0,
+  },
+  prMeta: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+  },
+
+  achievementGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  achievementCell: {
+    flex: 1,
+    minWidth: 240,
+  },
 });

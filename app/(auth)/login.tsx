@@ -1,25 +1,21 @@
-import { useRouter } from 'expo-router';
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import {
+  Image,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
-  Image,
-  ScrollView,
-  Platform,
   useWindowDimensions,
-  Pressable,
-  Animated,
 } from 'react-native';
 
-import { supabase } from '@/lib/supabase';
-import { SleekButton } from '@/components/ui/SleekButton';
 import { AnimatedText } from '@/components/ui/AnimatedText';
-import { AuthModal } from '@/components/ui/AuthModal';
+import { AuthModalForm } from '@/components/ui/AuthModalForm';
+import { MarketingFooter } from '@/components/ui/MarketingFooter';
+import { MarketingNavbar } from '@/components/ui/MarketingNavbar';
 import { VideoBackground } from '@/components/ui/VideoBackground';
 import { Colors } from '@/constants/theme';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAuthModal } from '@/hooks/use-auth-modal';
 
 // ─── Services Data ───────────────────────────────────────────────
 const SERVICES = [
@@ -49,93 +45,16 @@ const STATS = [
 ];
 
 export default function LandingScreen() {
-  const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;
 
-  // Auth
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [feedbackType, setFeedbackType] = useState<'success' | 'error' | undefined>(undefined);
-
-  const showFeedback = (message: string, type: 'success' | 'error') => {
-    setFeedbackMessage(message);
-    setFeedbackType(type);
-  };
-
-  const routeAfterAuth = async (userId: string) => {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', userId)
-      .maybeSingle();
-    router.replace(profile ? '/(app)' : '/(auth)/onboarding');
-  };
-
-  const handleAuth = async () => {
-    if (authMode === 'login') {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { showFeedback(error.message, 'error'); return; }
-      if (data?.session?.user?.id) {
-        showFeedback('Welcome back!', 'success');
-        setTimeout(() => routeAfterAuth(data.session.user.id), 800);
-      }
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) { showFeedback(error.message, 'error'); return; }
-      showFeedback('Account created!', 'success');
-      setTimeout(() => router.replace('/(auth)/onboarding'), 900);
-    }
-  };
-
-  const openAuth = (mode: 'login' | 'signup') => {
-    setAuthMode(mode);
-    setFeedbackMessage('');
-  };
+  const auth = useAuthModal();
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={{ flexGrow: 1 }}>
 
-      {/* ═══════════════ NAVBAR ═══════════════ */}
-      <View style={styles.navbar}>
-        <Text style={styles.logoText}>
-          AURA<Text style={{ color: Colors.dark.primary }}>FITNESS</Text>
-        </Text>
-
-        {!isMobile && (
-          <View style={styles.navLinks}>
-            {['Classes', 'Fitness & Sports', 'Training', 'Spa & Wellness', 'Locations'].map((label) => (
-              <Pressable key={label}>
-                {({ hovered }: any) => (
-                  <Text style={[styles.navLink, hovered && { color: Colors.dark.primary }]}>{label.toUpperCase()}</Text>
-                )}
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.navActions}>
-          <Pressable onPress={() => openAuth('login')}>
-            {({ hovered }: any) => (
-              <Text style={[styles.navLink, { fontFamily: 'Inter_700Bold' }, hovered && { color: Colors.dark.primary }]}>
-                SIGN IN
-              </Text>
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => openAuth('signup')}
-            style={({ hovered }: any) => [
-              styles.joinBtn,
-              hovered && { backgroundColor: '#D97706' },
-            ]}
-          >
-            <Text style={styles.joinBtnText}>JOIN AURA</Text>
-          </Pressable>
-        </View>
-      </View>
+      <MarketingNavbar onOpenAuth={auth.openAuth} activeRoute="/(auth)/login" />
 
       {/* ═══════════════ HERO w/ VIDEO ═══════════════ */}
       <VideoBackground source={require('@/assets/videos/12188774-uhd_3840_2160_25fps.mp4')}>
@@ -153,11 +72,8 @@ export default function LandingScreen() {
             </AnimatedText>
             <View style={{ marginTop: 40, flexDirection: isMobile ? 'column' : 'row', gap: 16, alignItems: 'center' }}>
               <Pressable
-                onPress={() => openAuth('signup')}
-                style={({ hovered }: any) => [
-                  styles.heroCta,
-                  hovered && { backgroundColor: '#D97706' },
-                ]}
+                onPress={() => auth.openAuth('signup')}
+                style={({ hovered }: any) => [styles.heroCta, hovered && { backgroundColor: '#D97706' }]}
               >
                 <Text style={styles.heroCtaText}>START YOUR JOURNEY</Text>
               </Pressable>
@@ -194,10 +110,7 @@ export default function LandingScreen() {
           {SERVICES.map((svc, i) => (
             <Pressable
               key={i}
-              style={({ hovered }: any) => [
-                styles.serviceCard,
-                hovered && { transform: [{ scale: 1.02 }] },
-              ]}
+              style={({ hovered }: any) => [styles.serviceCard, hovered && { transform: [{ scale: 1.02 }] }]}
             >
               <Image source={svc.image} style={styles.serviceImage} resizeMode="cover" />
               <View style={styles.serviceOverlay} />
@@ -223,11 +136,8 @@ export default function LandingScreen() {
           </AnimatedText>
           <View style={{ marginTop: 32, flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
             <Pressable
-              onPress={() => openAuth('signup')}
-              style={({ hovered }: any) => [
-                styles.heroCta,
-                hovered && { backgroundColor: '#D97706' },
-              ]}
+              onPress={() => auth.openAuth('signup')}
+              style={({ hovered }: any) => [styles.heroCta, hovered && { backgroundColor: '#D97706' }]}
             >
               <Text style={styles.heroCtaText}>JOIN AURA FITNESS</Text>
             </Pressable>
@@ -257,7 +167,7 @@ export default function LandingScreen() {
             </Text>
             <View style={{ marginTop: 24 }}>
               <Pressable
-                onPress={() => openAuth('signup')}
+                onPress={() => auth.openAuth('signup')}
                 style={({ hovered }: any) => [
                   styles.heroCta,
                   { alignSelf: 'flex-start' },
@@ -307,99 +217,20 @@ export default function LandingScreen() {
         </View>
       </View>
 
-      {/* ═══════════════ FOOTER ═══════════════ */}
-      <View style={styles.footer}>
-        <View style={[styles.footerInner, isMobile && { flexDirection: 'column', gap: 32 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.logoText}>
-              AURA<Text style={{ color: Colors.dark.primary }}>FITNESS</Text>
-            </Text>
-            <Text style={styles.footerTagline}>
-              Elevating fitness since 2024.
-            </Text>
-          </View>
-          <View style={styles.footerCol}>
-            <Text style={styles.footerColTitle}>CLUB</Text>
-            {['Classes', 'Training', 'Locations', 'Careers'].map((t) => (
-              <Text key={t} style={styles.footerLink}>{t}</Text>
-            ))}
-          </View>
-          <View style={styles.footerCol}>
-            <Text style={styles.footerColTitle}>SERVICES</Text>
-            {['Spa & Wellness', 'Nutrition', 'Youth Programs', 'Corporate'].map((t) => (
-              <Text key={t} style={styles.footerLink}>{t}</Text>
-            ))}
-          </View>
-          <View style={styles.footerCol}>
-            <Text style={styles.footerColTitle}>CONNECT</Text>
-            {['Instagram', 'Twitter', 'LinkedIn', 'Contact Us'].map((t) => (
-              <Text key={t} style={styles.footerLink}>{t}</Text>
-            ))}
-          </View>
-        </View>
-        <View style={styles.footerBottom}>
-          <Text style={styles.footerCopy}>© 2024 Aura Fitness. All rights reserved.</Text>
-        </View>
-      </View>
+      <MarketingFooter />
 
-      {/* ═══════════════ AUTH MODAL ═══════════════ */}
-      <AuthModal visible={!!authMode} onClose={() => setAuthMode(null)}>
-        <AnimatedText style={styles.modalTitle}>
-          {authMode === 'login' ? 'Welcome Back' : 'Join Aura Fitness'}
-        </AnimatedText>
-        <AnimatedText style={styles.modalSub}>
-          {authMode === 'login' ? 'Enter your details to access your account.' : 'Create an account to start your journey.'}
-        </AnimatedText>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email address"
-            placeholderTextColor="#555"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            style={styles.input}
-          />
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor="#555"
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="password"
-            style={styles.input}
-          />
-        </View>
-
-        {feedbackMessage ? (
-          <Text style={[styles.feedbackText, feedbackType === 'success' ? styles.success : styles.error]}>
-            {feedbackMessage}
-          </Text>
-        ) : null}
-
-        <View style={styles.buttonContainer}>
-          <Pressable
-            onPress={handleAuth}
-            style={({ hovered }: any) => [
-              styles.heroCta,
-              { width: '100%' },
-              hovered && { backgroundColor: '#D97706' },
-            ]}
-          >
-            <Text style={[styles.heroCtaText, { textAlign: 'center' }]}>
-              {authMode === 'login' ? 'SIGN IN' : 'CREATE ACCOUNT'}
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => openAuth(authMode === 'login' ? 'signup' : 'login')}>
-            <Text style={styles.switchAuthText}>
-              {authMode === 'login' ? 'Need an account? Sign up' : 'Already a member? Log in'}
-            </Text>
-          </Pressable>
-        </View>
-      </AuthModal>
+      <AuthModalForm
+        authMode={auth.authMode}
+        email={auth.email}
+        setEmail={auth.setEmail}
+        password={auth.password}
+        setPassword={auth.setPassword}
+        feedbackMessage={auth.feedbackMessage}
+        feedbackType={auth.feedbackType}
+        onSubmit={auth.handleAuth}
+        onSwitchMode={auth.openAuth}
+        onClose={auth.closeAuth}
+      />
     </ScrollView>
   );
 }
@@ -409,55 +240,6 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: '#0A0A0A',
-  },
-
-  // Navbar
-  navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 40,
-    paddingVertical: 20,
-    backgroundColor: 'rgba(10, 10, 10, 0.6)',
-  },
-  logoText: {
-    fontSize: 22,
-    fontFamily: 'Inter_800ExtraBold',
-    color: '#FFF',
-    letterSpacing: 2,
-  },
-  navLinks: {
-    flexDirection: 'row',
-    gap: 28,
-  },
-  navLink: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  navActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  joinBtn: {
-    backgroundColor: Colors.dark.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 4,
-  },
-  joinBtnText: {
-    color: '#0A0A0A',
-    fontSize: 12,
-    fontFamily: 'Inter_800ExtraBold',
-    letterSpacing: 1.5,
   },
 
   // Hero
@@ -756,106 +538,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
     marginTop: 8,
-  },
-
-  // Footer
-  footer: {
-    backgroundColor: '#050505',
-    paddingTop: 80,
-    paddingHorizontal: 40,
-  },
-  footerInner: {
-    flexDirection: 'row',
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
-    gap: 40,
-    paddingBottom: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  footerTagline: {
-    color: '#666',
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 8,
-  },
-  footerCol: {
-    gap: 10,
-  },
-  footerColTitle: {
-    color: '#FFF',
-    fontSize: 12,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  footerLink: {
-    color: '#888',
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-  },
-  footerBottom: {
-    paddingVertical: 24,
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  footerCopy: {
-    color: '#555',
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-  },
-
-  // Auth Modal
-  modalTitle: {
-    fontSize: 28,
-    fontFamily: 'Inter_700Bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  modalSub: {
-    fontSize: 15,
-    color: '#9CA3AF',
-    fontFamily: 'Inter_400Regular',
-    marginBottom: 32,
-  },
-  inputContainer: {
-    gap: 16,
-    marginBottom: 24,
-    width: '100%',
-  },
-  input: {
-    backgroundColor: '#1A1C23',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 6,
-    padding: 16,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter_400Regular',
-    width: '100%',
-  },
-  buttonContainer: {
-    gap: 16,
-    width: '100%',
-    alignItems: 'center',
-  },
-  switchAuthText: {
-    color: '#999',
-    fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-  },
-  feedbackText: {
-    marginBottom: 16,
-    fontSize: 14,
-    textAlign: 'center',
-    fontFamily: 'Inter_500Medium',
-  },
-  success: {
-    color: '#10B981',
-  },
-  error: {
-    color: '#EF4444',
   },
 });

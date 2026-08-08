@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# unused source videos at repo root — the ones actually used live in assets/videos/
+/*.mp4
+
 # typescript
 *.tsbuildinfo
 

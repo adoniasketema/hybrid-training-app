@@ -12,39 +12,47 @@ export function Sidebar() {
   const pathname = usePathname();
 
   const NAV_ITEMS = [
-    { name: 'index', title: 'Home', icon: 'house.fill', path: '/' },
-    { name: 'workout', title: 'Workout', icon: 'flame.fill', path: '/workout' },
-    { name: 'progress', title: 'Progress', icon: 'chart.bar.fill', path: '/progress' },
-    { name: 'profile', title: 'Profile', icon: 'person.crop.circle', path: '/profile' },
+    { name: 'index', title: 'Today', icon: 'house.fill', path: '/' },
+    { name: 'workout', title: 'Sessions', icon: 'flame.fill', path: '/workout' },
+    { name: 'progress', title: 'Records', icon: 'chart.bar.fill', path: '/progress' },
+    { name: 'profile', title: 'You', icon: 'person.crop.circle', path: '/profile' },
   ] as const;
 
   return (
     <View style={[styles.container, { backgroundColor: 'transparent', borderRightColor: 'rgba(255,255,255,0.05)' }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>HybridTraining</Text>
+        <Text style={styles.title}>
+          AURA<Text style={{ color: theme.primary }}>FITNESS</Text>
+        </Text>
+        <View style={[styles.headerRule, { backgroundColor: theme.primary }]} />
       </View>
       <View style={styles.nav}>
         {NAV_ITEMS.map((item) => {
           // simple path matching since expo-router pathname includes the leading slash
           const isActive = pathname === item.path || (pathname === '/' && item.path === '/');
-          
+
           return (
             <Pressable
               key={item.name}
               onPress={() => router.push(item.path as any)}
               style={({ hovered }) => [
                 styles.navItem,
-                isActive && { backgroundColor: 'transparent', borderLeftWidth: 3, borderLeftColor: theme.primary, paddingLeft: 13 },
-                hovered && !isActive && { backgroundColor: '#1A1C23' },
+                isActive && {
+                  backgroundColor: 'rgba(245, 158, 11, 0.10)',
+                  borderLeftWidth: 3,
+                  borderLeftColor: theme.primary,
+                  paddingLeft: 13,
+                },
+                hovered && !isActive && { backgroundColor: 'rgba(255,255,255,0.04)' },
                 !isActive && { borderLeftWidth: 3, borderLeftColor: 'transparent', paddingLeft: 13 },
                 // @ts-ignore - hover is supported in react-native-web
-                { cursor: 'pointer' }
+                { cursor: 'pointer' },
               ]}
             >
-              <IconSymbol 
-                name={item.icon as any} 
-                size={24} 
-                color={isActive ? theme.primary : theme.tabIconDefault} 
+              <IconSymbol
+                name={item.icon as any}
+                size={22}
+                color={isActive ? theme.primary : theme.tabIconDefault}
               />
               <Text style={[styles.navText, { color: isActive ? theme.primary : theme.text }]}>
                 {item.title}
@@ -66,13 +74,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 36,
     paddingHorizontal: 12,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
+    fontSize: 22,
+    fontFamily: 'Inter_800ExtraBold',
+    color: '#FFF',
+    letterSpacing: 2,
+  },
+  headerRule: {
+    width: 32,
+    height: 2,
+    borderRadius: 1,
+    marginTop: 10,
+    opacity: 0.9,
   },
   nav: {
     flex: 1,
