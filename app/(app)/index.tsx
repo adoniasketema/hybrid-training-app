@@ -4,9 +4,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HeroBlock } from '@/components/ui/HeroBlock';
+import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionFeedCard } from '@/components/ui/SessionFeedCard';
 import { StatRing } from '@/components/ui/StatRing';
-import { WeekStrip } from '@/components/ui/WeekStrip';
 import { Colors } from '@/constants/theme';
 import { getSessionFeed, getVolumeTotals, SessionSummary } from '@/lib/records';
 import { getWorkoutStats, WorkoutStats } from '@/lib/stats';
@@ -87,8 +87,8 @@ export default function TodayScreen() {
         </HeroBlock>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This Week</Text>
-          <WeekStrip completedDates={completedDates} />
+          <Text style={styles.sectionTitle}>This Month</Text>
+          <MonthCalendar completedDates={completedDates} />
         </View>
 
         <View style={[styles.ringsRow, isMobile && { justifyContent: 'space-around' }]}>

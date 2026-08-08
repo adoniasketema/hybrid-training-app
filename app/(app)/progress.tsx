@@ -53,6 +53,29 @@ export default function RecordsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenHeader eyebrow="Your Activity" title="Records" />
 
+        {/* Personal records — the marquee stat, up top */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Personal Records</Text>
+          {prs.length === 0 ? (
+            <Text style={styles.mutedText}>Log a strength set with weight to unlock your first PR.</Text>
+          ) : (
+            <View style={[styles.prGrid, isMobile && { flexDirection: 'column' }]}>
+              {prs.map((pr) => (
+                <SleekCard key={pr.exerciseId} containerStyle={[styles.prCard, isMobile && { flex: undefined, width: '100%' }]}>
+                  <Text style={styles.prExercise}>{pr.exerciseName}</Text>
+                  <Text style={styles.prValue}>
+                    {Math.round(pr.maxWeightLbs)}
+                    <Text style={styles.prUnit}> lb</Text>
+                  </Text>
+                  <Text style={styles.prMeta}>
+                    × {pr.atReps} · {formatDateShort(pr.atDate)}
+                  </Text>
+                </SleekCard>
+              ))}
+            </View>
+          )}
+        </View>
+
         {/* Streak / totals hero */}
         <View style={styles.heroCard}>
           <View style={styles.heroInner}>
@@ -84,29 +107,6 @@ export default function RecordsScreen() {
               </View>
             </View>
           </View>
-        </View>
-
-        {/* Personal records */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Records</Text>
-          {prs.length === 0 ? (
-            <Text style={styles.mutedText}>Log a strength set with weight to unlock your first PR.</Text>
-          ) : (
-            <View style={[styles.prGrid, isMobile && { flexDirection: 'column' }]}>
-              {prs.map((pr) => (
-                <SleekCard key={pr.exerciseId} containerStyle={[styles.prCard, isMobile && { flex: undefined, width: '100%' }]}>
-                  <Text style={styles.prExercise}>{pr.exerciseName}</Text>
-                  <Text style={styles.prValue}>
-                    {Math.round(pr.maxWeightLbs)}
-                    <Text style={styles.prUnit}> lb</Text>
-                  </Text>
-                  <Text style={styles.prMeta}>
-                    × {pr.atReps} · {formatDateShort(pr.atDate)}
-                  </Text>
-                </SleekCard>
-              ))}
-            </View>
-          )}
         </View>
 
         {/* Achievements */}
