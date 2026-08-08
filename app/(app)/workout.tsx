@@ -92,6 +92,7 @@ export default function WorkoutScreen() {
   // List view
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
   const [feed, setFeed] = useState<SessionSummary[]>([]);
+  const [feedFilter, setFeedFilter] = useState<'all' | 'month' | 'year'>('all');
 
   // Detail view
   const [workout, setWorkout] = useState<WorkoutData | null>(null);
@@ -577,6 +578,39 @@ export default function WorkoutScreen() {
   /* ── Render: Workout List ──────────────────────────────── */
 
   if (!workoutId) {
+    // Filter feed to selected time range, then group by "YYYY-MM"
+    const now = new Date();
+    const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const thisYearKey = String(now.getFullYear());
+    const filteredFeed =
+      feedFilter === 'month'
+        ? feed.filter((s) => s.date.startsWith(thisMonthKey))
+        : feedFilter === 'year'
+        ? feed.filter((s) => s.date.startsWith(thisYearKey))
+        : feed;
+
+    const groups: { key: string; label: string; sessions: SessionSummary[] }[] = [];
+    for (const s of filteredFeed) {
+      const [y, m] = s.date.split('-');
+      const key = `${y}-${m}`;
+      const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      });
+      let group = groups.find((g) => g.key === key);
+      if (!group) {
+        group = { key, label, sessions: [] };
+        groups.push(group);
+      }
+      group.sessions.push(s);
+    }
+
+    const FILTER_CHIPS: { id: 'all' | 'month' | 'year'; label: string }[] = [
+      { id: 'all', label: 'All Time' },
+      { id: 'month', label: 'This Month' },
+      { id: 'year', label: 'This Year' },
+    ];
+
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.screenPadding}>
@@ -586,19 +620,51 @@ export default function WorkoutScreen() {
             title="Start New Session"
             onPress={createWorkoutForToday}
             variant="accent"
-            style={{ marginBottom: 24 }}
+            style={{ marginBottom: 20 }}
           />
 
-          {feed.length === 0 ? (
+          <View style={styles.feedChipRow}>
+            {FILTER_CHIPS.map((chip) => {
+              const active = feedFilter === chip.id;
+              return (
+                <Pressable
+                  key={chip.id}
+                  onPress={() => setFeedFilter(chip.id)}
+                  style={({ hovered }: any) => [
+                    styles.feedChip,
+                    active && styles.feedChipActive,
+                    hovered && !active && styles.feedChipHovered,
+                  ]}
+                >
+                  <Text style={[styles.feedChipText, active && styles.feedChipTextActive]}>
+                    {chip.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {filteredFeed.length === 0 ? (
             <Text style={[styles.mutedText, { textAlign: 'center', marginTop: 24 }]}>
-              No sessions yet. Start your first one above.
+              No sessions in this range.
             </Text>
           ) : (
-            <View style={{ gap: 16 }}>
-              {feed.map((s) => (
-                <SessionFeedCard key={s.id} session={s} />
-              ))}
-            </View>
+            groups.map((group) => (
+              <View key={group.key} style={{ marginTop: 20, gap: 12 }}>
+                <View style={styles.feedGroupHeader}>
+                  <Text style={styles.feedGroupLabel}>{group.label.toUpperCase()}</Text>
+                  <Text style={styles.feedGroupCount}>
+                    {group.sessions.length}{' '}
+                    {group.sessions.length === 1 ? 'session' : 'sessions'}
+                  </Text>
+                </View>
+                <View style={{ gap: 16 }}>
+                  {group.sessions.map((s) => (
+                    <SessionFeedCard key={s.id} session={s} />
+                  ))}
+                </View>
+              </View>
+            ))
           )}
         </ScrollView>
       </SafeAreaView>
@@ -826,6 +892,58 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontFamily: 'Inter_600SemiBold',
+  },
+
+  /* ── Feed filters + month group headers ── */
+  feedChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 4,
+  },
+  feedChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  feedChipHovered: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  feedChipActive: {
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
+  },
+  feedChipText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.5,
+  },
+  feedChipTextActive: {
+    color: '#0A0A0A',
+  },
+  feedGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245,158,11,0.20)',
+  },
+  feedGroupLabel: {
+    color: Colors.dark.primary,
+    fontSize: 12,
+    fontFamily: 'Inter_800ExtraBold',
+    letterSpacing: 3,
+  },
+  feedGroupCount: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 
   /* ── Workout list ── */
