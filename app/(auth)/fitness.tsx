@@ -53,7 +53,7 @@ export default function FitnessScreen() {
   return (
     <MarketingPage
       activeRoute="/(auth)/fitness"
-      heroVideo={require('@/assets/videos/15204643_2160_3840_30fps.mp4')}
+      heroVideo={require('@/assets/videos/12712319_2160_3840_30fps.mp4')}
       eyebrow="Fitness & Sports"
       title="A FLOOR BUILT FOR EVERYTHING"
       subtitle="One hundred thousand square feet of premium equipment, open courts, and dedicated zones — designed to move the way you train."
