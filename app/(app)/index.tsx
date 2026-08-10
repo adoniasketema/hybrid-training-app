@@ -8,17 +8,9 @@ import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionFeedCard } from '@/components/ui/SessionFeedCard';
 import { StatRing } from '@/components/ui/StatRing';
 import { Colors } from '@/constants/theme';
-import { getSessionFeed, getVolumeTotals, SessionSummary } from '@/lib/records';
-import { getWorkoutStats, WorkoutStats } from '@/lib/stats';
+import { DashboardData, getDashboardData } from '@/lib/dashboard';
+import { EMPTY_STATS } from '@/lib/stats';
 import { supabase } from '@/lib/supabase';
-
-const EMPTY_STATS: WorkoutStats = {
-  streak: 0,
-  weeklySessions: 0,
-  hasWorkoutToday: false,
-  todayCount: 0,
-  history: [],
-};
 
 const formatDayLong = (d: Date) =>
   d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -34,14 +26,20 @@ export default function TodayScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const [stats, setStats] = useState<WorkoutStats>(EMPTY_STATS);
-  const [feed, setFeed] = useState<SessionSummary[]>([]);
-  const [volume, setVolume] = useState({ allTime: 0, thisWeek: 0 });
+  const [data, setData] = useState<DashboardData>({
+    stats: EMPTY_STATS,
+    feed: [],
+    volume: { allTime: 0, thisWeek: 0 },
+    personalRecords: [],
+  });
+  const { stats, feed, volume } = data;
 
+  // One fetch for the whole screen. `.catch` matters: without it a rejected
+  // load surfaces as an unhandled rejection and the screen sticks on empty.
   const fetchAll = useCallback(() => {
-    getWorkoutStats().then(setStats);
-    getSessionFeed().then(setFeed);
-    getVolumeTotals().then(setVolume);
+    getDashboardData()
+      .then(setData)
+      .catch((err) => console.warn('[Today] dashboard load failed', err));
   }, []);
 
   useFocusEffect(

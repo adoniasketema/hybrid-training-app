@@ -8,16 +8,9 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SleekCard } from '@/components/ui/SleekCard';
 import { StatRing } from '@/components/ui/StatRing';
 import { Colors } from '@/constants/theme';
-import { computeAchievements, getPersonalRecords, getVolumeTotals, PersonalRecord } from '@/lib/records';
-import { getWorkoutStats, WorkoutStats } from '@/lib/stats';
-
-const EMPTY_STATS: WorkoutStats = {
-  streak: 0,
-  weeklySessions: 0,
-  hasWorkoutToday: false,
-  todayCount: 0,
-  history: [],
-};
+import { DashboardData, getDashboardData } from '@/lib/dashboard';
+import { computeAchievements } from '@/lib/records';
+import { EMPTY_STATS } from '@/lib/stats';
 
 const formatDateShort = (iso: string) => {
   const d = new Date(iso + 'T00:00:00');
@@ -32,15 +25,19 @@ const formatVolume = (lbs: number) => {
 export default function RecordsScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const [stats, setStats] = useState<WorkoutStats>(EMPTY_STATS);
-  const [prs, setPrs] = useState<PersonalRecord[]>([]);
-  const [volume, setVolume] = useState({ allTime: 0, thisWeek: 0 });
+  const [data, setData] = useState<DashboardData>({
+    stats: EMPTY_STATS,
+    feed: [],
+    volume: { allTime: 0, thisWeek: 0 },
+    personalRecords: [],
+  });
+  const { stats, volume, personalRecords: prs } = data;
 
   useFocusEffect(
     useCallback(() => {
-      getWorkoutStats().then(setStats);
-      getPersonalRecords().then(setPrs);
-      getVolumeTotals().then(setVolume);
+      getDashboardData()
+        .then(setData)
+        .catch((err) => console.warn('[Records] dashboard load failed', err));
     }, [])
   );
 

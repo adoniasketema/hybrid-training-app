@@ -22,7 +22,9 @@ import { SleekCard } from '@/components/ui/SleekCard';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { localDayKey } from '@/lib/date';
-import { getSessionFeed, SessionSummary } from '@/lib/records';
+import { getDashboardData, invalidateDashboardCache } from '@/lib/dashboard';
+import { SessionSummary } from '@/lib/records';
+import { assertOnline, OfflineError } from '@/lib/connectivity';
 import { supabase } from '@/lib/supabase';
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -117,6 +119,12 @@ export default function WorkoutScreen() {
   }, [workoutId]);
 
   useEffect(() => {
+    // Tabs keep this screen mounted, so picker state survives tab switches.
+    // Without this reset, opening the picker and navigating away leaves the
+    // picker rendered over the feed when you come back.
+    setShowPicker(false);
+    setSearchQuery('');
+
     if (workoutId) {
       loadWorkoutDetail(workoutId);
     } else {
@@ -132,36 +140,24 @@ export default function WorkoutScreen() {
     setLoading(true);
     setError(null);
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) {
-      setError('Please sign in.');
+    try {
+      // Single shared fetch — this used to run its own `workouts` query and
+      // then call getSessionFeed(), duplicating the same round trip.
+      const { feed: sessions } = await getDashboardData();
+      setFeed(sessions);
+      setWorkouts(
+        sessions.map((s) => ({
+          id: s.id,
+          date: s.date,
+          completed: s.completed,
+          exerciseCount: s.setCount,
+        })),
+      );
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not load sessions.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data, error: err } = await supabase
-      .from('workouts')
-      .select('id, date, completed, workout_exercises(id)')
-      .eq('user_id', userData.user.id)
-      .order('date', { ascending: false });
-
-    if (err) {
-      setError(err.message);
-      setLoading(false);
-      return;
-    }
-
-    setWorkouts(
-      (data ?? []).map((item: any) => ({
-        id: item.id,
-        date: item.date,
-        completed: item.completed,
-        exerciseCount: item.workout_exercises?.length ?? 0,
-      })),
-    );
-    const richFeed = await getSessionFeed();
-    setFeed(richFeed);
-    setLoading(false);
   };
 
   const loadWorkoutDetail = async (id: string) => {
@@ -233,26 +229,37 @@ export default function WorkoutScreen() {
     setLoading(true);
     setError(null);
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) {
-      setError('Please sign in.');
+    try {
+      // Fail loudly offline rather than letting the insert silently vanish.
+      await assertOnline();
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
+        setError('Please sign in.');
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: err } = await supabase
+        .from('workouts')
+        .insert({ user_id: userData.user.id, date: todayKey(), completed: false })
+        .select()
+        .single();
+
+      if (err || !data) {
+        setError(err?.message ?? 'Could not create workout.');
+        setLoading(false);
+        return;
+      }
+
+      await invalidateDashboardCache();
+      router.push(`/workout?workoutId=${data.id}`);
+    } catch (e: any) {
+      setError(
+        e instanceof OfflineError ? e.message : e?.message ?? 'Could not create workout.',
+      );
       setLoading(false);
-      return;
     }
-
-    const { data, error: err } = await supabase
-      .from('workouts')
-      .insert({ user_id: userData.user.id, date: todayKey(), completed: false })
-      .select()
-      .single();
-
-    if (err || !data) {
-      setError(err?.message ?? 'Could not create workout.');
-      setLoading(false);
-      return;
-    }
-
-    router.push(`/workout?workoutId=${data.id}`);
   };
 
   const selectExercise = async (exercise: Exercise) => {
@@ -272,6 +279,13 @@ export default function WorkoutScreen() {
       insertData.distance_km = 0;
     }
 
+    try {
+      await assertOnline();
+    } catch (e: any) {
+      Alert.alert('Offline', e?.message ?? "You're offline.");
+      return;
+    }
+
     const { data, error: err } = await supabase
       .from('workout_exercises')
       .insert(insertData)
@@ -282,6 +296,8 @@ export default function WorkoutScreen() {
       Alert.alert('Error', err?.message ?? 'Could not add exercise.');
       return;
     }
+
+    await invalidateDashboardCache();
 
     const newSet: SetRow = {
       dbId: data.id,
@@ -340,6 +356,13 @@ export default function WorkoutScreen() {
       insertData.distance_km = 0;
     }
 
+    try {
+      await assertOnline();
+    } catch (e: any) {
+      Alert.alert('Offline', e?.message ?? "You're offline.");
+      return;
+    }
+
     const { data, error: err } = await supabase
       .from('workout_exercises')
       .insert(insertData)
@@ -350,6 +373,8 @@ export default function WorkoutScreen() {
       Alert.alert('Error', err?.message ?? 'Could not add set.');
       return;
     }
+
+    await invalidateDashboardCache();
 
     const newSet: SetRow = {
       dbId: data.id,
@@ -398,10 +423,28 @@ export default function WorkoutScreen() {
         updateData.duration_minutes = Number(set.durationMin) || 0;
       }
 
-      await supabase
-        .from('workout_exercises')
-        .update(updateData)
-        .eq('id', set.dbId);
+      try {
+        // Previously this had no error surface at all: an offline or failed
+        // update dropped the set silently and the user only found out when
+        // the value reverted on reload.
+        await assertOnline();
+
+        const { error: err } = await supabase
+          .from('workout_exercises')
+          .update(updateData)
+          .eq('id', set.dbId);
+
+        if (err) throw new Error(err.message);
+
+        await invalidateDashboardCache();
+        setError(null);
+      } catch (e: any) {
+        setError(
+          e instanceof OfflineError
+            ? "You're offline — that set wasn't saved. Reconnect and re-enter it."
+            : e?.message ?? 'Could not save set.',
+        );
+      }
     },
     [workout],
   );
@@ -424,18 +467,25 @@ export default function WorkoutScreen() {
   const finishWorkout = async () => {
     if (!workout) return;
 
-    const { error: err } = await supabase
-      .from('workouts')
-      .update({ completed: true })
-      .eq('id', workout.id);
+    try {
+      await assertOnline();
 
-    if (err) {
-      Alert.alert('Error', err.message);
-      return;
+      const { error: err } = await supabase
+        .from('workouts')
+        .update({ completed: true })
+        .eq('id', workout.id);
+
+      if (err) throw new Error(err.message);
+
+      await invalidateDashboardCache();
+      setWorkout({ ...workout, completed: true });
+      router.push('/workout');
+    } catch (e: any) {
+      const message =
+        e instanceof OfflineError ? e.message : e?.message ?? 'Could not finish workout.';
+      setError(message);
+      Alert.alert('Error', message);
     }
-
-    setWorkout({ ...workout, completed: true });
-    router.push('/workout');
   };
 
   /* ── Filtered exercises for picker ─────────────────────── */
@@ -484,7 +534,9 @@ export default function WorkoutScreen() {
 
   /* ── Render: Exercise Picker ───────────────────────────── */
 
-  if (showPicker) {
+  // The picker only makes sense while editing a specific workout — requiring
+  // workoutId here means a stale `showPicker` can never mask the feed.
+  if (showPicker && workoutId) {
     return (
       <View style={styles.pickerContainer}>
         <View style={styles.pickerHeader}>

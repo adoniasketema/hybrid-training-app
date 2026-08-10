@@ -140,7 +140,11 @@ const MOCK_SESSION = { user: MOCK_USER, access_token: 'mock-token' };
 export const supabase = {
   auth: {
     getSession: async () => ({ data: { session: currentSession }, error: null }),
-    getUser: async () => ({ data: { user: MOCK_USER }, error: null }),
+    // Derived from the session, matching the real client. Returning MOCK_USER
+    // unconditionally (as this used to) made every `if (!user)` guard in the
+    // data layer unreachable, so the signed-out path was never exercised and
+    // post-sign-out fetches could still resolve with a user.
+    getUser: async () => ({ data: { user: currentSession?.user ?? null }, error: null }),
     signInWithPassword: async () => {
       currentSession = MOCK_SESSION;
       if (sessionCallback) sessionCallback('SIGNED_IN', currentSession);
