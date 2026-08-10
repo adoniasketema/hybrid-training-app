@@ -1,8 +1,22 @@
 import { localDayKey } from '@/lib/date';
 
-// The original URL is invalid, so we use a mock client for the portfolio showcase
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://mock.supabase.co';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'mock-key';
+/**
+ * In-memory mock of the Supabase client, so the app is fully demo-able
+ * without provisioning a backend or shipping credentials.
+ *
+ * To swap in the real client, replace the `supabase` export at the bottom of
+ * this file with:
+ *
+ *   import { createClient } from '@supabase/supabase-js';
+ *   export const supabase = createClient(
+ *     process.env.EXPO_PUBLIC_SUPABASE_URL!,
+ *     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+ *   );
+ *
+ * Every call site uses the real client's API shape (chained filters,
+ * `.select().single()`, the `workouts(*, workout_exercises(*, exercises(*)))`
+ * join, and the realtime channel contract), so no consumer code changes.
+ */
 
 // Mock Data
 const MOCK_USER = { id: 'demo-user-123', email: 'demo@hybrid.com' };
