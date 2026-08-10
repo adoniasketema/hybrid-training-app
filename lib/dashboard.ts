@@ -1,6 +1,5 @@
-import NetInfo from '@react-native-community/netinfo';
-
 import { invalidateCache, readCache, writeCache } from '@/lib/cache';
+import { isOffline } from '@/lib/connectivity';
 import {
   derivePersonalRecords,
   deriveSessionFeed,
@@ -63,8 +62,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const cacheKey = cacheKeyFor(user.id);
 
-  const netInfo = await NetInfo.fetch();
-  if (!netInfo.isConnected) {
+  if (await isOffline()) {
     return readCache<DashboardData>(cacheKey, EMPTY_DASHBOARD, isDashboardData);
   }
 

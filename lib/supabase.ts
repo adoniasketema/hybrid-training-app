@@ -80,6 +80,36 @@ const createMockChain = (tableName: string) => {
   const applyFilters = (rows: any[]) =>
     filters.length === 0 ? rows : rows.filter((r) => filters.every(([c, v]) => r[c] === v));
 
+  // Mutations are DEFERRED until the query is awaited.
+  //
+  // Real Supabase builds a query lazily and executes it on await, so
+  // `.update(patch).eq('id', x)` filters to one row. Running the mutation
+  // eagerly inside update()/delete() meant the filters hadn't been collected
+  // yet, so `applyFilters` matched the whole table — `finishWorkout()` marked
+  // *every* workout complete, and `saveSetToDb()` wrote the same weight/reps
+  // to *every* set. Deferring restores the real client's semantics.
+  let pending: { type: 'update'; patch: any } | { type: 'delete' } | null = null;
+
+  const runPendingMutation = () => {
+    if (!pending) return;
+    const table = TABLES[tableName] || [];
+    const targets = applyFilters(table);
+
+    if (pending.type === 'update') {
+      const { patch } = pending;
+      targets.forEach((r) => Object.assign(r, patch));
+    } else {
+      const doomed = new Set(targets);
+      TABLES[tableName] = table.filter((r) => !doomed.has(r));
+    }
+    pending = null;
+  };
+
+  const read = () => {
+    runPendingMutation();
+    return decorateRows(tableName, applyFilters(TABLES[tableName] || []));
+  };
+
   const chain: any = {
     select: () => chain,
     eq: (col: string, val: any) => {
@@ -88,44 +118,36 @@ const createMockChain = (tableName: string) => {
     },
     order: () => chain,
     single: async () => {
-      const rows = decorateRows(tableName, applyFilters(TABLES[tableName] || []));
+      const rows = read();
       return { data: rows[0] ?? null, error: null };
     },
     maybeSingle: async () => {
-      const rows = decorateRows(tableName, applyFilters(TABLES[tableName] || []));
+      const rows = read();
       return { data: rows[0] ?? null, error: null };
     },
     // insert/update/delete return the chain so callers can do
     // `.insert(...).select().single()` (real Supabase supports this).
     insert: (row: any) => {
+      // Insert is applied immediately because the generated id must be
+      // available to a chained `.select().single()`.
       if (!TABLES[tableName]) TABLES[tableName] = [];
       const rows = Array.isArray(row) ? row : [row];
       const inserted = rows.map((r) => ({ id: newId(tableName), ...r }));
       TABLES[tableName].unshift(...inserted);
-      // Subsequent .select().single() on this chain should return the inserted row.
-      // Restrict filters to the inserted id(s) so .single() picks the new one.
+      // Scope any chained read to the row we just created.
       filters.push(['id', inserted[0].id]);
-      // For the workouts table, the app queries `workout_exercises(id)` — we
-      // need to ensure future reads join those, but the simple filter model
-      // above returns the raw workout row which is enough for the create path.
       return chain;
     },
     update: (patch: any) => {
-      const table = TABLES[tableName] || [];
-      const rowsToUpdate = applyFilters(table);
-      rowsToUpdate.forEach((r) => Object.assign(r, patch));
+      pending = { type: 'update', patch };
       return chain;
     },
     delete: () => {
-      const table = TABLES[tableName];
-      if (!table) return chain;
-      const keep = new Set(table);
-      applyFilters(table).forEach((r) => keep.delete(r));
-      TABLES[tableName] = table.filter((r) => keep.has(r));
+      pending = { type: 'delete' };
       return chain;
     },
     then: (resolve: any) => {
-      const rows = decorateRows(tableName, applyFilters(TABLES[tableName] || []));
+      const rows = read();
       resolve({ data: rows, error: null });
     },
   };

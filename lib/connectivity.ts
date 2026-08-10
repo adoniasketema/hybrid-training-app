@@ -19,12 +19,26 @@ export class OfflineError extends Error {
   }
 }
 
+/**
+ * Single definition of "offline", shared by the read and write paths.
+ *
+ * NetInfo reports `isConnected: null` while the state is still unknown. Only
+ * an explicit `false` is treated as offline — an unknown state stays
+ * optimistic, since a failed request already falls back to cache, whereas
+ * treating unknown as offline would serve stale data for no reason.
+ *
+ * Keeping this in one place matters: reads and writes previously disagreed
+ * (`!isConnected` vs `isConnected === false`), so an unknown state would
+ * block reads while still permitting writes.
+ */
+export async function isOffline(): Promise<boolean> {
+  const state = await NetInfo.fetch();
+  return state?.isConnected === false;
+}
+
 /** Throws `OfflineError` when there is no usable connection. */
 export async function assertOnline(): Promise<void> {
-  const state = await NetInfo.fetch();
-  // `isConnected === false` is definitive; null/undefined means unknown, and
-  // we optimistically allow the write rather than blocking on a bad probe.
-  if (state.isConnected === false) {
+  if (await isOffline()) {
     throw new OfflineError();
   }
 }
