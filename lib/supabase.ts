@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { localDayKey } from '@/lib/date';
 
 // The original URL is invalid, so we use a mock client for the portfolio showcase
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://mock.supabase.co';
@@ -23,7 +23,7 @@ const TABLES: Record<string, any[]> = {
     d.setDate(d.getDate() - (i * 2));
     return {
       id: `workout-${i}`,
-      date: d.toISOString().slice(0, 10),
+      date: localDayKey(d),
       completed: true,
       user_id: MOCK_USER.id,
     };
@@ -148,21 +148,30 @@ export const supabase = {
     }
   },
   from: (table: string) => createMockChain(table),
+
+  // Mirrors the real client's contract: `.on()` and `.subscribe()` both return
+  // the channel itself, so callers can chain multiple `.on()` handlers and
+  // hand the result straight to `removeChannel`. Returning a different shape
+  // here (as an earlier version did) hides subscription leaks until the real
+  // client is swapped in.
   channel: (name: string) => {
-    return {
-      on: (event: string, filter: any, callback: any) => {
-        // Return this mock channel for chaining
-        return {
-          subscribe: () => {
-            // Mock subscription - in a real app, this connects to WebSockets
-            console.log(`Subscribed to realtime channel: ${name}`);
-            return { unsubscribe: () => console.log(`Unsubscribed from ${name}`) };
-          }
-        };
-      }
+    let subscribed = false;
+    const ch: any = {
+      topic: name,
+      on: (_event: string, _filter: any, _callback: any) => ch,
+      subscribe: () => {
+        subscribed = true;
+        return ch;
+      },
+      unsubscribe: () => {
+        subscribed = false;
+        return Promise.resolve('ok');
+      },
+      get isSubscribed() {
+        return subscribed;
+      },
     };
+    return ch;
   },
-  removeChannel: (channel: any) => {
-    console.log('Channel removed');
-  }
+  removeChannel: (channel: any) => channel?.unsubscribe?.(),
 } as any;

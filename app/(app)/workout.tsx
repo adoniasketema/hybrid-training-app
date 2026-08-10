@@ -21,6 +21,7 @@ import { SleekButton } from '@/components/ui/SleekButton';
 import { SleekCard } from '@/components/ui/SleekCard';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
+import { localDayKey } from '@/lib/date';
 import { getSessionFeed, SessionSummary } from '@/lib/records';
 import { supabase } from '@/lib/supabase';
 
@@ -71,7 +72,7 @@ const FILTER_OPTIONS = [
 
 /* ── Helpers ───────────────────────────────────────────── */
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = () => localDayKey();
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString + 'T00:00:00');

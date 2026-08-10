@@ -47,14 +47,18 @@ export default function TodayScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchAll();
-      
-      // Subscribe to real-time changes on the workouts table
-      const channel = supabase.channel('public:workouts')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'workouts' }, payload => {
-          console.log('Real-time update received!', payload);
-          // Refetch data when a real-time event occurs
-          fetchAll();
-        })
+
+      // Subscribe to realtime changes on the workouts table. `.on()` and
+      // `.subscribe()` both return the channel, so `channel` is the handle
+      // that removeChannel() needs to actually tear the subscription down —
+      // without that, every focus would leak another subscription.
+      const channel = supabase
+        .channel('public:workouts')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'workouts' },
+          (_payload: unknown) => fetchAll(),
+        )
         .subscribe();
 
       return () => {

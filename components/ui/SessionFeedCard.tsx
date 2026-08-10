@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { photoForWorkout } from '@/components/ui/session-photo';
+import { daysAgoKey, localDayKey } from '@/lib/date';
 
 export interface SessionFeedItem {
   id: string;
@@ -33,10 +34,8 @@ const formatDate = (iso: string) => {
 const relativeDay = (iso: string) => {
   const d = new Date(iso + 'T00:00:00');
   const now = new Date();
-  const todayKey = now.toISOString().slice(0, 10);
-  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-  if (iso === todayKey) return 'TODAY';
-  if (iso === yesterday.toISOString().slice(0, 10)) return 'YESTERDAY';
+  if (iso === localDayKey(now)) return 'TODAY';
+  if (iso === daysAgoKey(1, now)) return 'YESTERDAY';
   const diffDays = Math.round((now.getTime() - d.getTime()) / 86400000);
   if (diffDays < 7) return `${diffDays}D AGO`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}W AGO`;

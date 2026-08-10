@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { storage } from '@/lib/storage';
+import { daysAgoKey, localDayKey } from '@/lib/date';
 import NetInfo from '@react-native-community/netinfo';
 
 export type WorkoutHistoryItem = {
@@ -17,7 +18,7 @@ export type WorkoutStats = {
   history: WorkoutHistoryItem[];
 };
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = () => localDayKey();
 
 /**
  * Fetches completed workouts for the current user and derives:
@@ -74,15 +75,13 @@ export async function getWorkoutStats(): Promise<WorkoutStats> {
   if (!daysWithWorkout.has(todayKey())) {
     cursor.setDate(cursor.getDate() - 1);
   }
-  while (daysWithWorkout.has(cursor.toISOString().slice(0, 10))) {
+  while (daysWithWorkout.has(localDayKey(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
 
   // Weekly: count of completed *sessions* (rows) in the last 7 days, today inclusive.
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 6);
-  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const cutoffKey = daysAgoKey(6);
   const weeklySessions = data.filter((w: any) => (w.date as string) >= cutoffKey).length;
 
   const todayCount = data.filter((w: any) => w.date === todayKey()).length;

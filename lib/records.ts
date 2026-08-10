@@ -2,6 +2,7 @@ import { Achievement } from '@/components/ui/AchievementBadge';
 import { supabase } from '@/lib/supabase';
 import { WorkoutStats } from '@/lib/stats';
 import { storage } from '@/lib/storage';
+import { daysAgoKey } from '@/lib/date';
 import NetInfo from '@react-native-community/netinfo';
 
 export type PersonalRecord = {
@@ -102,9 +103,7 @@ export async function getVolumeTotals(): Promise<{ allTime: number; thisWeek: nu
     return cached ? JSON.parse(cached) : emptyResult;
   }
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 6);
-  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const cutoffKey = daysAgoKey(6);
 
   let allTime = 0;
   let thisWeek = 0;
@@ -145,7 +144,7 @@ export async function getSessionFeed(): Promise<SessionSummary[]> {
     return cached ? JSON.parse(cached) : [];
   }
 
-  return (workouts as any[]).map((w) => {
+  const result: SessionSummary[] = (workouts as any[]).map((w) => {
     const wes = w.workout_exercises ?? [];
     const names = Array.from(new Set(wes.map((we: any) => we.exercises?.name).filter(Boolean))) as string[];
     let volume = 0;
@@ -159,7 +158,7 @@ export async function getSessionFeed(): Promise<SessionSummary[]> {
       totalVolumeLbs: volume,
     };
   });
-  
+
   storage.set(cacheKey, JSON.stringify(result));
   return result;
 }

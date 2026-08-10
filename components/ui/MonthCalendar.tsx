@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { localDayKey } from '@/lib/date';
 
 interface MonthCalendarProps {
   completedDates: Set<string>;
@@ -14,12 +15,9 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const iso = (d: Date) => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+// Shared with stats/records so day comparisons can't drift between the
+// calendar grid and the streak math (see lib/date.ts).
+const iso = localDayKey;
 
 /**
  * 6×7 month grid with prev/next arrows. Days that appear in
